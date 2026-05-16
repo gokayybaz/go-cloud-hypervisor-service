@@ -123,25 +123,6 @@ func (req *CreateVMRequest) Validate() []problem.FieldError {
 		}
 	}
 
-	if req.Kernel == nil && req.Payload == nil {
-    errs = append(errs, problem.Field("kernel", "kernel or payload is required"))
-} else if req.Kernel != nil && req.Kernel.Path == "" {
-    errs = append(errs, problem.Field("kernel.path", "path is required"))
-} else if req.Payload != nil && req.Payload.Firmware == "" && req.Payload.Kernel == "" {
-    errs = append(errs, problem.Field("payload", "firmware or kernel path is required"))
-}
-
-
-	if len(req.Disks) == 0 {
-		errs = append(errs, problem.Field("disks", "at least one disk is required"))
-	} else {
-		for i, d := range req.Disks {
-			if d.Path == "" {
-				errs = append(errs, problem.Field(fmt.Sprintf("disks[%d].path", i), "path is required"))
-			}
-		}
-	}
-
 	for i, n := range req.Net {
 		if n.Tap == "" && n.IP == "" && n.Mac == "" {
 			errs = append(errs, problem.Field(fmt.Sprintf("net[%d]", i), "at least one of tap, ip, or mac is required"))
