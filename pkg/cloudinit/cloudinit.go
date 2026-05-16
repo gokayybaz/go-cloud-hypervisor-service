@@ -84,8 +84,8 @@ ethernets:
 }
 
 func createISO(outputPath, srcDir string) error {
-	// Calculate size needed (1 MB minimum for cloud-init)
-	const isoSize = 1024 * 1024 // 1 MB
+	// Calculate size needed (~2 MB, must be multiple of 2048 for ISO9660)
+	const isoSize = 2048 * 1024
 
 	// Remove existing file if present
 	_ = os.Remove(outputPath)
