@@ -22,6 +22,7 @@ type Config struct {
 	TLS             TLSConfig             `mapstructure:"tls"`
 	Network         NetworkConfig         `mapstructure:"network"`
 	Images          ImagesConfig          `mapstructure:"images"`
+	Keys            KeysConfig            `mapstructure:"keys"`
 	Profile         bool                  `mapstructure:"profile"`
 }
 
@@ -82,6 +83,11 @@ type ImagesConfig struct {
 	BasePath  string `mapstructure:"base_path"`
 	BaseImage string `mapstructure:"base_image"`
 	Kernel    string `mapstructure:"kernel"`
+}
+
+// KeysConfig holds SSH key settings.
+type KeysConfig struct {
+	BasePath string `mapstructure:"base_path"`
 }
 
 // TLSConfig holds TLS settings.
@@ -168,6 +174,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("images.base_path", "/var/lib/ch-api/images")
 	v.SetDefault("images.base_image", "ubuntu.raw")
 	v.SetDefault("images.kernel", "bzImage")
+
+	v.SetDefault("keys.base_path", "/var/lib/ch-api/keys")
 
 	v.SetDefault("profile", false)
 }

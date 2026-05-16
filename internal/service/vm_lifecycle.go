@@ -23,6 +23,12 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			return fmt.Errorf("create disk: %w", err)
 		}
 
+		keyPair, err := s.sshKeyMgr.Generate(id)
+		if err != nil {
+			return fmt.Errorf("generate ssh key: %w", err)
+		}
+		_ = keyPair // will be used in cloud-init ISO generation
+
 		tapCfg, err := s.networkMgr.Allocate(id)
 		if err != nil {
 			return fmt.Errorf("allocate network: %w", err)
@@ -137,6 +143,7 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.Release(id)
 		}
 		_ = s.imageMgr.DeleteDisk(id)
+		_ = s.sshKeyMgr.Delete(id)
 		return nil
 	})
 }

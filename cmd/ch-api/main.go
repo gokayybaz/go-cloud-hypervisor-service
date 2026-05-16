@@ -21,6 +21,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/pprof"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/sshkey"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/preflight"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/ratelimit"
 	chtls "github.com/gokaybaz/go-cloud-hypervisor-service/pkg/tls"
@@ -109,7 +110,9 @@ func main() {
 		cfg.Images.Kernel,
 	)
 
-	svc := service.New(store, logger, el, netMgr, imageMgr)
+	sshKeyMgr := sshkey.NewManager(cfg.Keys.BasePath)
+
+	svc := service.New(store, logger, el, netMgr, imageMgr, sshKeyMgr)
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {

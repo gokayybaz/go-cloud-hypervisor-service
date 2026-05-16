@@ -165,6 +165,7 @@ func (h *VMHandler) Register(r chi.Router) {
 	r.Get("/vms", h.List)
 	r.Get("/vms/{id}", h.Get)
 	r.Delete("/vms/{id}", h.Delete)
+	r.Get("/vms/{id}/ssh-key", h.GetSSHKey)
 }
 
 // Create handles POST /vms.
@@ -328,6 +329,28 @@ func (h *VMHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetSSHKey handles GET /api/v1/vms/{id}/ssh-key.
+// @Summary      Get VM SSH Key
+// @Description  Returns the private SSH key for the virtual machine.
+// @Tags         VMs
+// @Param        id   path  string  true  "VM ID"
+// @Success      200  {string}  string  "Private key PEM"
+// @Failure      404  {object}  problem.Detail  "SSH key not found"
+// @Router       /api/v1/vms/{id}/ssh-key [get]
+func (h *VMHandler) GetSSHKey(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	key, err := h.svc.GetVMSSHKey(id)
+	if err != nil {
+		h.logger.Error("get ssh key failed", "err", err)
+		problem.NotFound(r.URL.Path, fmt.Sprintf("ssh key for vm %q not found", id)).Write(w)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.pem\"", id))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(key)
 }
 
 // ---------------------------------------------------------------------------
