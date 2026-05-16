@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"path\":\"/extra.raw\",\"readonly\":true}")

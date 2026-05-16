@@ -1,0 +1,23 @@
+# ch-api default configuration.
+# This file demonstrates all available keys and their defaults.
+# Copy to config.yaml and override as needed.
+
+server:
+  port: "8080"               # HTTP listen port
+  host: ""                   # HTTP listen host (empty = all interfaces)
+  read_timeout: "15s"        # HTTP read timeout
+  write_timeout: "15s"       # HTTP write timeout
+  idle_timeout: "60s"        # HTTP idle timeout
+  shutdown_timeout: "15s"    # Graceful shutdown timeout
+
+log:
+  level: "info"              # debug | info | warn | error | fatal | panic
+  format: "json"             # json | console
+
+preflight:
+  enabled: true              # Run preflight checks on startup
+  strict_mode: false         # Exit on preflight failure (true) or log warning (false)
+
+cloud_hypervisor:
+  binary_path: "cloud-hypervisor"     # Path or name of the CH binary
+  socket_path: "/var/run/ch-api/ch.sock"  # API socket path

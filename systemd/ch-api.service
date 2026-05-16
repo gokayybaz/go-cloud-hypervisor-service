@@ -1,0 +1,55 @@
+[Unit]
+Description=Cloud Hypervisor API Service
+Documentation=https://github.com/org/ch-api/docs
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart=/usr/local/bin/ch-api
+WorkingDirectory=/var/lib/ch-api
+User=ch-api
+Group=ch-api
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ch-api
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=512M
+TasksMax=512
+
+# Environment
+Environment="CH_API_CONFIG=/etc/ch-api/config.yaml"
+Environment="CH_API_LOG_LEVEL=info"
+Environment="CH_API_LOG_FORMAT=json"
+
+# Logging — forward stdout/stderr to the systemd journal.
+# The binary writes structured JSON logs on stdout; journald captures them
+# and enriches each line with _SYSTEMD_UNIT, PRIORITY, and timestamps.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ch-api
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

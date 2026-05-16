@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 5 Completion Report — Security &amp; Access Control</title>
+<style>
+:root {
+  --bg: #f8f9fa; --fg: #212529;
+  --sidebar-bg: #1a1d21; --sidebar-fg: #adb5bd; --sidebar-active: #ffffff;
+  --accent: #0d6efd; --accent-light: #cfe2ff;
+  --completed: #198754; --completed-bg: #d1e7dd;
+  --partial: #c78100; --partial-bg: #fff3cd;
+  --blocked: #dc3545; --blocked-bg: #f8d7da;
+  --border: #dee2e6; --code-bg: #e9ecef; --section-bg: #ffffff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6}
+.wrapper{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--sidebar-bg);color:var(--sidebar-fg);padding:24px 16px;position:fixed;top:0;left:0;bottom:0;overflow-y:auto}
+.sidebar h2{margin:0 0 24px 0;font-size:1.1rem;color:var(--sidebar-active);border-bottom:1px solid #343a40;padding-bottom:12px}
+.sidebar nav ul{list-style:none;padding:0;margin:0}
+.sidebar nav li+li{margin-top:6px}
+.sidebar nav a{display:block;color:var(--sidebar-fg);text-decoration:none;padding:8px 12px;border-radius:6px;font-size:.9rem;transition:background .15s,color .15s}
+.sidebar nav a:hover,.sidebar nav a.active{background:#343a40;color:var(--sidebar-active)}
+.main{margin-left:260px;flex:1;padding:32px 40px;max-width:1100px}
+h1{margin-top:0;font-size:1.8rem;border-bottom:2px solid var(--accent);padding-bottom:8px}
+h2{font-size:1.4rem;margin-top:40px;margin-bottom:16px;color:#1a1d21}
+h3{font-size:1.1rem;margin-top:28px;margin-bottom:10px;color:#333}
+.section{background:var(--section-bg);border:1px solid var(--border);border-radius:8px;padding:24px;margin-bottom:24px}
+.badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge-completed{background:var(--completed-bg);color:var(--completed)}
+.badge-partial{background:var(--partial-bg);color:var(--partial)}
+.badge-blocked{background:var(--blocked-bg);color:var(--blocked)}
+.summary-table{width:100%;border-collapse:collapse;margin:16px 0}
+.summary-table th,.summary-table td{border:1px solid var(--border);padding:12px 16px;text-align:left}
+.summary-table th{background:#f1f3f5;font-weight:600}
+.summary-table tr:nth-child(even){background:#f8f9fa}
+.matrix-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem}
+.matrix-table th,.matrix-table td{border:1px solid var(--border);padding:10px 12px;text-align:center}
+.matrix-table th{background:#f1f3f5;font-weight:600}
+.matrix-table td:first-child,.matrix-table th:first-child{text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.85rem}
+.check{color:var(--completed);font-weight:bold;font-size:1.2rem}
+.cross{color:var(--blocked);font-weight:bold;font-size:1.2rem}
+.info-box{background:var(--accent-light);border-left:4px solid var(--accent);padding:16px 20px;border-radius:0 6px 6px 0;margin:16px 0}
+.info-box h4{margin:0 0 8px 0;font-size:1rem}
+.info-box ul{margin:0;padding-left:20px}
+.info-box li{margin:4px 0}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:var(--code-bg);padding:1px 5px;border-radius:4px;font-size:.88em}
+pre{background:#1a1d21;color:#e9ecef;padding:16px;border-radius:6px;overflow-x:auto;font-size:.85rem}
+pre code{background:transparent;padding:0;font-size:inherit}
+ul.tight li{margin:4px 0}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--border);font-size:.85rem;color:#6c757d}
+@media(max-width:900px){.sidebar{display:none}.main{margin-left:0;padding:20px}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<aside class="sidebar">
+<h2>Phase 5 Report</h2>
+<nav>
+<ul>
+<li><a href="#overview" class="active">Overview</a></li>
+<li><a href="#summary">Executive Summary</a></li>
+<li><a href="#jwt">JWT Authentication</a></li>
+<li><a href="#rbac">RBAC Authorization</a></li>
+<li><a href="#ratelimit">Rate Limiting</a></li>
+<li><a href="#tls">TLS Support</a></li>
+<li><a href="#socket">Unix Socket Permissions</a></li>
+<li><a href="#files">Files Created / Modified</a></li>
+</ul>
+</nav>
+</aside>
+
+<main class="main">
+<h1 id="overview">Phase 5 — Security &amp; Access Control</h1>
+<p>This report documents the completion of Phase 5 for the <code>github.com/org/ch-api</code> Cloud Hypervisor API project. All security and access control features were implemented, tested, and documented.</p>
+
+<h2 id="summary">Executive Summary</h2>
+<div class="section">
+<table class="summary-table">
+<thead><tr><th>Metric</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Total Tasks</td><td>5</td></tr>
+<tr><td>Completed</td><td><span class="badge badge-completed">5</span></td></tr>
+<tr><td>Partial</td><td><span class="badge badge-partial">0</span></td></tr>
+<tr><td>Blocked</td><td><span class="badge badge-blocked">0</span></td></tr>
+<tr><td>New Packages</td><td>4</td></tr>
+<tr><td>New Test Files</td><td>4</td></tr>
+<tr><td>New Docs</td><td>3</td></tr>
+<tr><td>Modified Files</td><td>12</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="jwt">1. JWT Authentication Middleware</h2>
+<div class="section">
+<p><span class="badge badge-completed">Completed</span></p>
+
+<h3>What was done</h3>
+<p>A JWT Bearer token authentication middleware was created in <code>pkg/auth/auth.go</code>. It validates tokens on every request to the <code>/api/v1</code> sub-router, extracts claims into the request context, and returns structured 401 responses on failure.</p>
+
+<h3>JWT library</h3>
+<ul class="tight">
+<li>Library: <code>github.com/golang-jwt/jwt/v5</code> (v5.3.1)</li>
+<li>Only <code>HS256</code> (HMAC-SHA256) is accepted.</li>
+<li>HS256 was chosen for simplicity and because the service runs as a single node; asymmetric signing (RS256/ES256) would add key management complexity without a multi-service topology.</li>
+</ul>
+
+<h3>Token extraction</h3>
+<ul class="tight">
+<li>Header name: <code>Authorization</code></li>
+<li>Required prefix: <code>Bearer </code> (case-insensitive)</li>
+<li>Malformed headers (missing prefix, wrong scheme) are rejected.</li>
+</ul>
+
+<h3>Claims validated</h3>
+<table class="summary-table">
+<thead><tr><th>Claim</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>sub</code></td><td>string</td><td>Required</td><td>Subject identifier; must be non-empty.</td></tr>
+<tr><td><code>exp</code></td><td>NumericDate</td><td>Recommended</td><td>Expiration time; tokens without <code>exp</code> are accepted but discouraged.</td></tr>
+<tr><td><code>nbf</code></td><td>NumericDate</td><td>Optional</td><td>Not Before; standard validation applies.</td></tr>
+<tr><td><code>iat</code></td><td>NumericDate</td><td>Optional</td><td>Issued At; standard validation applies.</td></tr>
+<tr><td><code>iss</code></td><td>string</td><td>Optional</td><td>Issuer; validated when <code>auth.issuer</code> is configured.</td></tr>
+<tr><td><code>aud</code></td><td>string / []string</td><td>Optional</td><td>Audience; validated when <code>auth.audience</code> is configured.</td></tr>
+<tr><td><code>roles</code></td><td>[]string</td><td>Optional</td><td>Role strings for RBAC; injected into context.</td></tr>
+</tbody>
+</table>
+
+<h3>Context injection</h3>
+<p>On successful validation the middleware injects two context values using typed context keys:</p>
+<ul class="tight">
+<li><code>auth.SubjectFromContext(ctx)</code> &rarr; <code>string</code></li>
+<li><code>auth.RolesFromContext(ctx)</code> &rarr; <code>[]string</code></li>
+</ul>
+
+<h3>401 response body</h3>
+<pre><code>{
+  "type": "https://github.com/org/ch-api/errors/unauthorized",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "token expired",
+  "instance": "/api/v1/vms"
+}</code></pre>
+<p>The <code>detail</code> field varies to distinguish failure modes: <code>"missing authorization header"</code>, <code>"invalid authorization header format"</code>, <code>"invalid token: ..."</code>, <code>"invalid issuer"</code>, <code>"invalid audience"</code>, <code>"missing subject claim"</code>, <code>"token expired"</code>.</p>
+
+<h3>Design decisions</h3>
+<ul class="tight">
+<li>Auth is mounted <strong>only on <code>/api/v1</code></strong> so that <code>/healthz</code>, <code>/metrics</code>, and <code>/api/docs/*</code> remain public.</li>
+<li>Double expiry check: <code>jwt.ParseWithClaims</code> validates <code>exp</code>; a defensive second check ensures the token is not accepted even if the library is configured with leeway in the future.</li>
+</ul>
+
+<h3>Limitations</h3>
+<ul class="tight">
+<li>JWTs are not revocable without a blocklist. A compromised token remains valid until it expires.</li>
+<li>Only symmetric signing (HS256) is supported. Key rotation requires a coordinated restart.</li>
+</ul>
+
+<h3>Files</h3>
+<ul class="tight">
+<li><strong>Created:</strong> <code>pkg/auth/auth.go</code>, <code>pkg/auth/auth_test.go</code>, <code>docs/auth.md</code></li>
+<li><strong>Modified:</strong> <code>pkg/api/problem/problem.go</code>, <code>pkg/api/router.go</code>, <code>internal/config/config.go</code>, <code>cmd/ch-api/main.go</code></li>
+</ul>
+</div>
+
+<h2 id="rbac">2. RBAC Authorization Layer</h2>
+<div class="section">
+<p><span class="badge badge-completed">Completed</span></p>
+
+<h3>What was done</h3>
+<p>A role-based access control middleware was created in <code>pkg/auth/rbac.go</code>. It maps every protected endpoint to a minimum required role and enforces a three-tier hierarchy.</p>
+
+<h3>Roles defined</h3>
+<ul class="tight">
+<li><code>viewer</code> (level 0) — read-only</li>
+<li><code>operator</code> (level 1) — viewer + lifecycle + resource changes</li>
+<li><code>admin</code> (level 2) — operator + create/delete + disk/network management</li>
+</ul>
+<p>Higher roles <strong>implicitly inherit</strong> all permissions of lower roles. A user with <code>["viewer", "admin"]</code> is treated as <code>admin</code>.</p>
+
+<h3>Permission matrix</h3>
+<table class="matrix-table">
+<thead>
+<tr><th>Endpoint</th><th>viewer</th><th>operator</th><th>admin</th></tr>
+</thead>
+<tbody>
+<tr><td><code>GET /api/v1/vms</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>GET /api/v1/vms/{id}</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>GET /api/v1/vms/{id}/console</code></td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/boot</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/pause</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/resume</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/shutdown</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/reboot</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>PATCH /api/v1/vms/{id}/cpu</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>PATCH /api/v1/vms/{id}/memory</code></td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>DELETE /api/v1/vms/{id}</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/disks</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>DELETE /api/v1/vms/{id}/disks/{disk_id}</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/disks/{disk_id}/snapshot</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>POST /api/v1/vms/{id}/interfaces</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>DELETE /api/v1/vms/{id}/interfaces/{iface_id}</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+<tr><td><code>PATCH /api/v1/vms/{id}/interfaces/{iface_id}</code></td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+</tbody>
+</table>
+
+<h3>How the middleware reads roles</h3>
+<p>The RBAC middleware calls <code>auth.RolesFromContext(r.Context())</code> to obtain the <code>[]string</code> slice injected by the JWT middleware. Each string is parsed via <code>auth.ParseRole</code>; the highest numeric level is selected as the caller's effective role.</p>
+
+<h3>403 response body</h3>
+<pre><code>{
+  "type": "https://github.com/org/ch-api/errors/forbidden",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "insufficient permissions: requires admin role",
+  "instance": "/api/v1/vms"
+}</code></pre>
+
+<h3>Audit trail logging</h3>
+<p>The <code>pkg/audit/middleware.go</code> was updated to read the JWT <code>sub</code> claim from the context (<code>auth.SubjectFromContext</code>) before falling back to the <code>X-User-ID</code> header. Every authorization denial is:</p>
+<ul class="tight">
+<li>Logged at <strong>WARN</strong> level with fields: <code>reason</code>, <code>subject</code>, <code>user_roles</code>, <code>required_role</code>, <code>method</code>, <code>path</code>.</li>
+<li>Recorded in the SQLite audit trail with status code <code>403</code>, trace_id, and the authenticated subject as the <code>user</code> field.</li>
+</ul>
+
+<h3>Design decisions</h3>
+<ul class="tight">
+<li>RBAC is opt-out via <code>auth.rbac_enabled: false</code>; default is <code>true</code> when auth is enabled.</li>
+<li>Unlisted endpoints (e.g. <code>GET /api/v1/status</code>) are allowed if the token is valid, requiring no specific role.</li>
+<li>Path matching uses segment-based wildcard rules rather than regex for performance and clarity.</li>
+</ul>
+
+<h3>Files</h3>
+<ul class="tight">
+<li><strong>Created:</strong> <code>pkg/auth/rbac.go</code>, <code>pkg/auth/rbac_test.go</code></li>
+<li><strong>Modified:</strong> <code>pkg/api/problem/problem.go</code>, <code>pkg/api/router.go</code>, <code>pkg/audit/middleware.go</code>, <code>internal/config/config.go</code>, <code>cmd/ch-api/main.go</code>, <code>docs/auth.md</code></li>
+</ul>
+</div>
+
+<h2 id="ratelimit">3. Rate Limiting</h2>
+<div class="section">
+<p><span class="badge badge-completed">Completed</span></p>
+
+<h3>What was done</h3>
+<p>A per-IP and per-token sliding-window rate limiter was created in <code>pkg/ratelimit/ratelimit.go</code> and mounted on the root router.</p>
+
+<h3>Algorithm</h3>
+<p><strong>Sliding window counter.</strong></p>
+<p>For each key (IP or token subject) the limiter stores <code>prevCount</code>, <code>currCount</code>, and <code>currWindow</code>. On each request a weighted estimate is computed:</p>
+<pre><code>weight    = elapsed_time_in_window / window_size
+estimated = prevCount * (1 - weight) + currCount</code></pre>
+<p>If <code>estimated + 1 &gt; limit</code>, the request is rejected. This provides a smoother transition between fixed windows than a naive counter while remaining memory-efficient.</p>
+
+<h3>Data structure</h3>
+<p>In-memory <code>map[string]*window</code> protected by a <code>sync.RWMutex</code>. A background goroutine purges stale entries after each window expires.</p>
+
+<h3>Configuration</h3>
+<table class="summary-table">
+<thead><tr><th>Limit Type</th><th>Window</th><th>Max Requests</th><th>Applies To</th></tr></thead>
+<tbody>
+<tr><td>Per-IP</td><td>1 minute</td><td>100</td><td>All requests</td></tr>
+<tr><td>Per-token (viewer)</td><td>1 minute</td><td>100</td><td>Tokens with <code>viewer</code> role</td></tr>
+<tr><td>Per-token (operator)</td><td>1 minute</td><td>200</td><td>Tokens with <code>operator</code> role</td></tr>
+<tr><td>Per-token (admin)</td><td>1 minute</td><td>500</td><td>Tokens with <code>admin</code> role</td></tr>
+</tbody>
+</table>
+
+<h3>429 response</h3>
+<pre><code>HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+Content-Type: application/problem+json
+
+{
+  "type": "https://github.com/org/ch-api/errors/rate-limit-exceeded",
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "rate limit exceeded for ip; retry after 42 seconds",
+  "instance": "/api/v1/vms"
+}</code></pre>
+
+<h3>Logging</h3>
+<p>Every denial is logged at <strong>WARN</strong> with structured fields: <code>type</code> (ip/token), <code>key</code>, <code>retry_after_sec</code>, <code>method</code>, <code>path</code>, plus the trace_id from context.</p>
+
+<h3>Design decisions</h3>
+<ul class="tight">
+<li>Rate limiting is mounted on the <strong>root router</strong> so it also protects public endpoints (e.g. <code>/healthz</code>) from DoS.</li>
+<li>IP extraction respects <code>X-Forwarded-For</code> and <code>X-Real-Ip</code> before falling back to <code>RemoteAddr</code>.</li>
+<li>A limit set to <code>0</code> disables that specific limit while keeping others active.</li>
+</ul>
+
+<h3>Limitations</h3>
+<ul class="tight">
+<li>In-memory state is not shared across replicas. A distributed deployment would need Redis or similar.</li>
+<li>IP-based limits can be bypassed by a client rotating IP addresses (e.g. botnets).</li>
+</ul>
+
+<h3>Files</h3>
+<ul class="tight">
+<li><strong>Created:</strong> <code>pkg/ratelimit/ratelimit.go</code>, <code>pkg/ratelimit/ratelimit_test.go</code>, <code>docs/rate-limiting.md</code></li>
+<li><strong>Modified:</strong> <code>pkg/api/problem/problem.go</code>, <code>pkg/api/router.go</code>, <code>internal/config/config.go</code>, <code>cmd/ch-api/main.go</code></li>
+</ul>
+</div>
+
+<h2 id="tls">4. TLS Support</h2>
+<div class="section">
+<p><span class="badge badge-completed">Completed</span></p>
+
+<h3>What was done</h3>
+<p>TLS configuration builder and ACME support were created in <code>pkg/tls/tls.go</code>. Both manual certificate mode and automatic Let's Encrypt mode are supported.</p>
+
+<div class="info-box">
+<h4>TLS Configuration Summary</h4>
+<ul>
+<li><strong>Minimum TLS version:</strong> <code>TLS 1.2</code></li>
+<li><strong>Certificate modes:</strong> Manual PEM files + ACME (Let's Encrypt)</li>
+<li><strong>Cipher suites:</strong> 6 AEAD suites with forward secrecy only</li>
+<li><strong>Excluded:</strong> CBC modes, RSA key exchange, TLS 1.0/1.1</li>
+<li><strong>Server preference:</strong> Enabled</li>
+</ul>
+</div>
+
+<h3>Enabled cipher suites</h3>
+<pre><code>TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305</code></pre>
+<p>CBC suites and RSA key exchange are excluded because they lack forward secrecy (RSA-KEX) or are vulnerable to padding oracle attacks (CBC). Only AEAD suites with ephemeral key exchange are permitted.</p>
+
+<h3>Certificate modes</h3>
+<table class="summary-table">
+<thead><tr><th>Mode</th><th>Config</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Manual</td><td><code>tls.cert_file</code> + <code>tls.key_file</code></td><td>Server loads PEM-encoded certificate and key at startup.</td></tr>
+<tr><td>ACME</td><td><code>tls.acme_enabled: true</code></td><td>Auto-provisions certificates from Let's Encrypt. HTTP-01 challenge handler runs on port 80.</td></tr>
+</tbody>
+</table>
+
+<h3>Non-TLS connections</h3>
+<p>When TLS is enabled the server calls <code>http.Server.ListenAndServeTLS</code>, which rejects unencrypted connections. There is no plaintext fallback.</p>
+
+<h3>Certificate reload</h3>
+<p>Manual certificates are loaded once at startup. A restart is required to reload them. ACME certificates are cached on disk in <code>data/certs</code> and renewed automatically by the <code>autocert.Manager</code> before expiry.</p>
+
+<h3>Design decisions</h3>
+<ul class="tight">
+<li>TLS hardening (min version, cipher suites) is applied <strong>unconditionally</strong> when TLS is enabled; there is no "permissive" mode.</li>
+<li>The ACME HTTP-01 challenge server runs on port 80 in a separate goroutine and is not subject to the main middleware stack (it only serves ACME challenges).</li>
+</ul>
+
+<h3>Files</h3>
+<ul class="tight">
+<li><strong>Created:</strong> <code>pkg/tls/tls.go</code>, <code>pkg/tls/tls_test.go</code>, <code>docs/tls.md</code></li>
+<li><strong>Modified:</strong> <code>internal/config/config.go</code>, <code>cmd/ch-api/main.go</code>, <code>go.mod</code></li>
+</ul>
+</div>
+
+<h2 id="socket">5. Unix Socket Permission Check</h2>
+<div class="section">
+<p><span class="badge badge-completed">Completed</span></p>
+
+<h3>What was done</h3>
+<p>A startup-time security check was added to <code>pkg/preflight/preflight.go</code> that verifies the Cloud Hypervisor VMM Unix domain socket is owned by and accessible only to the service user.</p>
+
+<h3>Exact assertions</h3>
+<table class="summary-table">
+<thead><tr><th>#</th><th>Assertion</th><th>Pass Criteria</th><th>Fail Action</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Path is non-empty</td><td><code>socket_path != ""</code></td><td>Fatal abort</td></tr>
+<tr><td>2</td><td>File exists and is a socket</td><td><code>info.Mode() &amp; os.ModeSocket != 0</code></td><td>Fatal abort</td></tr>
+<tr><td>3</td><td>Owned by current user</td><td><code>stat.Uid == os.Getuid()</code></td><td>Fatal abort</td></tr>
+<tr><td>4</td><td>No group or other access</td><td><code>perm &amp; 0o077 == 0</code></td><td>Fatal abort</td></tr>
+</tbody>
+</table>
+
+<h3>Syscalls / stdlib calls used</h3>
+<ul class="tight">
+<li><code>os.Stat(path)</code> — stat the file</li>
+<li><code>info.Sys().(*syscall.Stat_t)</code> — extract raw Unix stat for UID</li>
+<li><code>os.Getuid()</code> — get effective UID of the current process</li>
+<li><code>info.Mode().Perm()</code> — extract permission bits</li>
+</ul>
+
+<h3>Logging</h3>
+<ul class="tight">
+<li><strong>Pass:</strong> Logged at <strong>INFO</strong> level with message field containing the socket path, UID, and mode.</li>
+<li><strong>Fail:</strong> Logged at <strong>ERROR</strong> level with the failure reason, followed by immediate <code>os.Exit(1)</code>.</li>
+</ul>
+
+<h3>Process behavior on failure</h3>
+<p>The process <strong>aborts immediately</strong> with exit code 1. There is no fallback, no retry, and no "strict mode" override. An insecure VMM socket is treated as a hard security boundary violation.</p>
+
+<h3>Design decisions</h3>
+<ul class="tight">
+<li>The check runs <strong>after</strong> general preflight checks but <strong>before</strong> any services (audit, HTTP server) are started. This prevents the API from accepting requests while the VMM socket is insecure.</li>
+<li>The check is <strong>not conditional on preflight.enabled</strong>. Even if preflight checks are disabled, the socket check still runs because it is a security-critical invariant.</li>
+</ul>
+
+<h3>Files</h3>
+<ul class="tight">
+<li><strong>Modified:</strong> <code>pkg/preflight/preflight.go</code>, <code>pkg/preflight/preflight_test.go</code>, <code>cmd/ch-api/main.go</code></li>
+</ul>
+</div>
+
+<h2 id="files">Files Created or Modified</h2>
+<div class="section">
+<table class="summary-table">
+<thead><tr><th>Path</th><th>Action</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>pkg/auth/auth.go</code></td><td>Created</td><td>JWT middleware, context helpers, claims struct</td></tr>
+<tr><td><code>pkg/auth/auth_test.go</code></td><td>Created</td><td>JWT middleware tests</td></tr>
+<tr><td><code>pkg/auth/rbac.go</code></td><td>Created</td><td>RBAC middleware, permission table, role hierarchy</td></tr>
+<tr><td><code>pkg/auth/rbac_test.go</code></td><td>Created</td><td>RBAC middleware tests</td></tr>
+<tr><td><code>pkg/ratelimit/ratelimit.go</code></td><td>Created</td><td>Sliding-window rate limiter</td></tr>
+<tr><td><code>pkg/ratelimit/ratelimit_test.go</code></td><td>Created</td><td>Rate limiter tests</td></tr>
+<tr><td><code>pkg/tls/tls.go</code></td><td>Created</td><td>TLS config builder, ACME manager</td></tr>
+<tr><td><code>pkg/tls/tls_test.go</code></td><td>Created</td><td>TLS config tests</td></tr>
+<tr><td><code>pkg/api/problem/problem.go</code></td><td>Modified</td><td>Added Unauthorized, Forbidden, RateLimitExceeded constructors</td></tr>
+<tr><td><code>pkg/api/router.go</code></td><td>Modified</td><td>Mounted auth, RBAC, and rate limit middleware</td></tr>
+<tr><td><code>pkg/api/api_test.go</code></td><td>Modified</td><td>Updated NewRouter signatures</td></tr>
+<tr><td><code>pkg/audit/middleware.go</code></td><td>Modified</td><td>Reads JWT subject from context for audit entries</td></tr>
+<tr><td><code>internal/config/config.go</code></td><td>Modified</td><td>Added AuthConfig, RateLimitConfig, TLSConfig</td></tr>
+<tr><td><code>internal/handler/lifecycle_test.go</code></td><td>Modified</td><td>Updated NewRouter call</td></tr>
+<tr><td><code>internal/handler/vm_test.go</code></td><td>Modified</td><td>Updated NewRouter call</td></tr>
+<tr><td><code>internal/handler/console_test.go</code></td><td>Modified</td><td>Updated NewRouter call</td></tr>
+<tr><td><code>cmd/ch-api/main.go</code></td><td>Modified</td><td>Wired auth, rate limit, TLS, and socket check</td></tr>
+<tr><td><code>docs/auth.md</code></td><td>Created</td><td>JWT token format and RBAC documentation</td></tr>
+<tr><td><code>docs/rate-limiting.md</code></td><td>Created</td><td>Rate limiting configuration reference</td></tr>
+<tr><td><code>docs/tls.md</code></td><td>Created</td><td>TLS setup and hardening documentation</td></tr>
+<tr><td><code>docs/api.md</code></td><td>Modified</td><td>Updated middleware stack description</td></tr>
+<tr><td><code>go.mod</code></td><td>Modified</td><td>Added golang.org/x/crypto for autocert</td></tr>
+</tbody>
+</table>
+</div>
+
+<footer>
+<p><strong>Generated by:</strong> OpenCode (opencode-go/kimi-k2.6) &mdash; <code>github.com/org/ch-api</code></p>
+<p><strong>Timestamp:</strong> 2026-05-15T00:00:00Z</p>
+<p><strong>Phase 5 Status:</strong> All tasks completed. Zero blockers. Zero partial items.</p>
+</footer>
+</main>
+</div>
+</body>
+</html>

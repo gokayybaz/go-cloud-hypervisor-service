@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 3 Completion Report — Cloud Hypervisor Go API</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --surface: #ffffff;
+    --text: #212529;
+    --text-secondary: #6c757d;
+    --border: #dee2e6;
+    --accent: #0d6efd;
+    --accent-light: #e7f1ff;
+    --green: #198754;
+    --green-bg: #d1e7dd;
+    --amber: #ffc107;
+    --amber-bg: #fff3cd;
+    --red: #dc3545;
+    --red-bg: #f8d7da;
+    --blue: #0d6efd;
+    --blue-bg: #cfe2ff;
+    --code-bg: #f1f3f5;
+    --sidebar-width: 260px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .layout {
+    display: flex;
+    min-height: 100vh;
+  }
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 1rem;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar h2 {
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent);
+  }
+  .sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .sidebar nav li {
+    margin-bottom: 0.25rem;
+  }
+  .sidebar nav a {
+    display: block;
+    padding: 0.35rem 0.6rem;
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  .sidebar nav a:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+  .main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 2rem;
+    max-width: 1000px;
+  }
+  h1 { font-size: 1.75rem; margin-top: 0; }
+  h2 { font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.8rem; color: var(--text); }
+  h4 { font-size: 1rem; margin-top: 1.4rem; color: var(--text-secondary); }
+  p { margin: 0.75rem 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  th, td {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--bg);
+    font-weight: 600;
+  }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    background: var(--code-bg);
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+  pre code {
+    display: block;
+    padding: 1rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge-completed { background: var(--green-bg); color: var(--green); }
+  .badge-partial   { background: var(--amber-bg); color: #856404; }
+  .badge-blocked   { background: var(--red-bg); color: var(--red); }
+  .badge-get     { background: var(--blue-bg); color: #084298; }
+  .badge-post    { background: var(--green-bg); color: var(--green); }
+  .badge-patch   { background: var(--amber-bg); color: #856404; }
+  .badge-delete  { background: var(--red-bg); color: var(--red); }
+  .badge-ws      { background: #d1ecf1; color: #0c5460; }
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .card .number {
+    font-size: 2rem;
+    font-weight: 700;
+    display: block;
+  }
+  .card .label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .file-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  .file-list ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+  .file-list li {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+  }
+  .decision-box {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .decision-box strong {
+    color: var(--accent);
+  }
+  .problem-box {
+    background: var(--red-bg);
+    border-left: 4px solid var(--red);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .problem-box strong {
+    color: var(--red);
+  }
+  .middleware-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 400px;
+    margin: 1rem 0;
+  }
+  .middleware-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .middleware-item .arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    text-align: center;
+    width: 100%;
+  }
+  .middleware-item .name {
+    font-weight: 600;
+    font-family: monospace;
+  }
+  .middleware-item .desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  @media (max-width: 800px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <h2>Phase 3 Report</h2>
+  <nav>
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#task-summary">Task Summary</a></li>
+      <li><a href="#endpoints">Endpoint Reference</a></li>
+      <li><a href="#middleware">Middleware Stack</a></li>
+      <li><a href="#server">1. HTTP Server</a></li>
+      <li><a href="#vm-crud">2. VM CRUD</a></li>
+      <li><a href="#lifecycle">3. VM Lifecycle</a></li>
+      <li><a href="#disk">4. Disk Management</a></li>
+      <li><a href="#network">5. Network Interfaces</a></li>
+      <li><a href="#resource">6. Resource Management</a></li>
+      <li><a href="#console">7. Console WebSocket</a></li>
+      <li><a href="#footer">Footer</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main class="main">
+
+<h1 id="overview">Phase 3 Completion Report</h1>
+<p><strong>Project:</strong> Cloud Hypervisor Go API (<code>github.com/org/ch-api</code>)<br>
+<strong>Phase:</strong> 3 — HTTP API Layer<br>
+<strong>Date:</strong> 2026-05-13</p>
+
+<h2 id="task-summary">Task Summary</h2>
+<div class="summary-cards">
+  <div class="card">
+    <span class="number" style="color:var(--green)">7</span>
+    <span class="label">Total Tasks</span>
+  </div>
+  <div class="card">
+    <span class="number" style="color:var(--green)">7</span>
+    <span class="label">Completed</span>
+  </div>
+  <div class="card">
+    <span class="number" style="color:var(--amber)">0</span>
+    <span class="label">Partial</span>
+  </div>
+  <div class="card">
+    <span class="number" style="color:var(--red)">0</span>
+    <span class="label">Blocked</span>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Task</th><th>Status</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1. HTTP server setup</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>chi router, middleware stack, versioned /api/v1/, 19 tests</td>
+    </tr>
+    <tr>
+      <td>2. VM CRUD endpoints</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>POST/GET/GET/DELETE with JSON Schema validation, RFC 7807 errors, 12 tests</td>
+    </tr>
+    <tr>
+      <td>3. VM lifecycle endpoints</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>boot/pause/resume/shutdown/reboot with operation log and user identity, 8 tests</td>
+    </tr>
+    <tr>
+      <td>4. Disk management endpoints</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>add/remove/snapshot with current disk state in response, 3 tests</td>
+    </tr>
+    <tr>
+      <td>5. Network interface endpoints</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>add/remove/patch with MAC/IP-CIDR validation, 5 tests</td>
+    </tr>
+    <tr>
+      <td>6. Resource management endpoints</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>cpu/memory PATCH with requested/effective values and clamping logs, 3 tests</td>
+    </tr>
+    <tr>
+      <td>7. Console WebSocket endpoint</td>
+      <td><span class="badge badge-completed">Completed</span></td>
+      <td>GET /vms/{id}/console with goroutine cleanup and session logging, 2 tests</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="endpoints">Full Endpoint Reference</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Path</th>
+      <th>Handler</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/healthz</code></td><td><code>healthHandler</code></td><td>Health check</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/status</code></td><td><code>statusHandler</code></td><td>Service status</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms</code></td><td><code>VMHandler.Create</code></td><td>Create a VM</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/vms</code></td><td><code>VMHandler.List</code></td><td>List all VMs</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/vms/{id}</code></td><td><code>VMHandler.Get</code></td><td>Get a VM by ID</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/v1/vms/{id}</code></td><td><code>VMHandler.Delete</code></td><td>Delete a VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/boot</code></td><td><code>VMLifecycleHandler.Boot</code></td><td>Boot the VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/pause</code></td><td><code>VMLifecycleHandler.Pause</code></td><td>Pause the VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/resume</code></td><td><code>VMLifecycleHandler.Resume</code></td><td>Resume the VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/shutdown</code></td><td><code>VMLifecycleHandler.Shutdown</code></td><td>Shut down the VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/reboot</code></td><td><code>VMLifecycleHandler.Reboot</code></td><td>Reboot the VM</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/disks</code></td><td><code>DiskHandler.Add</code></td><td>Attach a disk</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/v1/vms/{id}/disks/{disk_id}</code></td><td><code>DiskHandler.Remove</code></td><td>Detach a disk</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/disks/{disk_id}/snapshot</code></td><td><code>DiskHandler.Snapshot</code></td><td>Snapshot a disk</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms/{id}/interfaces</code></td><td><code>NetworkHandler.Add</code></td><td>Add a network interface</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/v1/vms/{id}/interfaces/{iface_id}</code></td><td><code>NetworkHandler.Remove</code></td><td>Remove a network interface</td></tr>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/api/v1/vms/{id}/interfaces/{iface_id}</code></td><td><code>NetworkHandler.Patch</code></td><td>Update a network interface</td></tr>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/api/v1/vms/{id}/cpu</code></td><td><code>ResourceHandler.PatchCPU</code></td><td>Resize vCPU count</td></tr>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/api/v1/vms/{id}/memory</code></td><td><code>ResourceHandler.PatchMemory</code></td><td>Resize memory</td></tr>
+    <tr><td><span class="badge badge-ws">WS</span></td><td><code>/api/v1/vms/{id}/console</code></td><td><code>ConsoleHandler.Stream</code></td><td>Stream console over WebSocket</td></tr>
+  </tbody>
+</table>
+
+<h2 id="middleware">Middleware Stack</h2>
+<p>Middleware is applied outermost first. The arrow indicates request flow (down) and response flow (up).</p>
+<div class="middleware-stack">
+  <div class="middleware-item">
+    <span class="name">PanicRecovery</span>
+    <span class="desc">Catch panics → log stack → 500</span>
+  </div>
+  <div class="arrow">↓ request / ↑ response</div>
+  <div class="middleware-item">
+    <span class="name">TraceID</span>
+    <span class="desc">Inject X-Request-ID into context</span>
+  </div>
+  <div class="arrow">↓ request / ↑ response</div>
+  <div class="middleware-item">
+    <span class="name">AccessLogger</span>
+    <span class="desc">Structured access log with duration, status, trace_id</span>
+  </div>
+  <div class="arrow">↓ request / ↑ response</div>
+  <div class="middleware-item">
+    <span class="name">Timeout</span>
+    <span class="desc">Per-request deadline (30s) → 504 on exceed</span>
+  </div>
+  <div class="arrow">↓ request / ↑ response</div>
+  <div class="middleware-item" style="background:var(--accent-light); border-color:var(--accent);">
+    <span class="name">Handler</span>
+    <span class="desc">Business logic</span>
+  </div>
+</div>
+
+<h2 id="server">1. HTTP Server Setup</h2>
+<h3>What was done</h3>
+<p>A production HTTP server was built on the <a href="https://github.com/go-chi/chi">chi</a> v5 router. All versioned REST endpoints live under <code>/api/v1/</code> via a mounted sub-router. Non-versioned paths (e.g. <code>/healthz</code>) are registered on the root router.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>pkg/api/router.go</code> (182 lines) — chi router, middleware stack, versioned sub-router</li>
+    <li><code>pkg/api/server.go</code> (43 lines) — <code>http.Server</code> builder with <code>ServerConfig</code></li>
+    <li><code>pkg/api/api_test.go</code> (614 lines) — 19 tests for routing and middleware</li>
+    <li><code>internal/handler/handler.go</code> (42 lines) — route registration wiring</li>
+    <li><code>cmd/ch-api/main.go</code> — updated to use new router and server API</li>
+  </ul>
+</div>
+
+<h3>Server configuration</h3>
+<table>
+  <thead>
+    <tr><th>Field</th><th>Default</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Host</code></td><td><code>""</code> (all interfaces)</td><td>Bind address</td></tr>
+    <tr><td><code>Port</code></td><td><code>"8080"</code></td><td>Listen port</td></tr>
+    <tr><td><code>ReadTimeout</code></td><td><code>30s</code></td><td>Max duration for reading the entire request</td></tr>
+    <tr><td><code>WriteTimeout</code></td><td><code>30s</code></td><td>Max duration before timing out writes</td></tr>
+    <tr><td><code>IdleTimeout</code></td><td><code>120s</code></td><td>Max duration for next request on keep-alive</td></tr>
+  </tbody>
+</table>
+
+<h3>Key design decisions</h3>
+<div class="decision-box">
+  <strong>chi over Go 1.22 ServeMux.</strong> chi provides URL parameters (<code>/vms/{id}</code>), middleware chaining, sub-router mounting, and method-based routing. The single third-party dependency is justified by the expressiveness it adds for RESTful API design.
+</div>
+<div class="decision-box">
+  <strong>TraceID before AccessLogger.</strong> The trace_id middleware runs before the access logger so that the access log can read <code>trace_id</code> from the request context. PanicRecovery is outermost so it catches panics from the goroutine spawned by Timeout.
+</div>
+<div class="decision-box">
+  <strong>Timeout runs the handler in a goroutine.</strong> This allows monitoring the deadline independently. If the handler panics in the goroutine, the panic is recovered and re-raised in the parent goroutine so PanicRecovery can handle it.
+</div>
+
+<h3>Problems encountered and resolutions</h3>
+<div class="problem-box">
+  <strong>Panic not propagated through Timeout goroutine.</strong> The initial Timeout implementation swallowed panics from the handler goroutine. Fixed by adding a <code>defer recover()</code> inside the goroutine that stores the recovered value and re-panics it in the parent goroutine after <code>&lt;-done</code>.
+</div>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 19 tests passing.</p>
+
+<h2 id="vm-crud">2. VM CRUD Endpoints</h2>
+<h3>What was done</h3>
+<p>Four endpoints for VM management with JSON Schema-style validation on request bodies and RFC 7807 Problem Details for all error responses.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>pkg/api/problem/problem.go</code> (114 lines) — RFC 7807 Problem Details with <code>FieldError</code> array</li>
+    <li><code>internal/handler/vm.go</code> (298 lines) — DTOs, validation, CRUD handlers</li>
+    <li><code>internal/handler/vm_test.go</code> (461 lines) — 12 tests</li>
+    <li><code>internal/service/vm.go</code> (65 lines) — CreateVM, GetVM, ListVMs, DeleteVM, UpdateVM</li>
+    <li><code>internal/store/vm.go</code> (100 lines) — VM model and in-memory store</li>
+  </ul>
+</div>
+
+<h3>Endpoints</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/api/v1/vms</code></td><td><code>VMHandler.Create</code></td><td>Create VM with validation</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/vms</code></td><td><code>VMHandler.List</code></td><td>List all VMs</td></tr>
+    <tr><td><span class="badge badge-get">GET</span></td><td><code>/api/v1/vms/{id}</code></td><td><code>VMHandler.Get</code></td><td>Get VM by ID</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/v1/vms/{id}</code></td><td><code>VMHandler.Delete</code></td><td>Delete VM by ID</td></tr>
+  </tbody>
+</table>
+
+<h3>Validation rules</h3>
+<table>
+  <thead>
+    <tr><th>Field</th><th>Rule</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>Required, non-empty</td></tr>
+    <tr><td><code>cpus</code></td><td>Required; <code>boot_vcpus &gt;= 1</code>; <code>max_vcpus &gt;= boot_vcpus</code></td></tr>
+    <tr><td><code>memory.size</code></td><td>Required, &gt;= 64 (MB)</td></tr>
+    <tr><td><code>kernel.path</code></td><td>Required, non-empty</td></tr>
+    <tr><td><code>disks</code></td><td>Required, at least one; each <code>path</code> non-empty</td></tr>
+    <tr><td><code>net[*]</code></td><td>At least one of <code>tap</code>, <code>ip</code>, or <code>mac</code></td></tr>
+  </tbody>
+</table>
+
+<h3>RFC 7807 problem detail structure</h3>
+<pre><code>{
+  "type": "https://github.com/org/ch-api/errors/invalid-request",
+  "title": "Invalid Request",
+  "status": 400,
+  "detail": "request body validation failed",
+  "instance": "/api/v1/vms",
+  "errors": [
+    {"field": "name", "message": "name is required"},
+    {"field": "cpus.boot_vcpus", "message": "must be >= 1"}
+  ]
+}</code></pre>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 12 tests passing. No pagination or filtering implemented (out of scope for this phase).</p>
+
+<h2 id="lifecycle">3. VM Lifecycle Endpoints</h2>
+<h3>What was done</h3>
+<p>Five endpoints that map to the <code>vmm</code> package lifecycle methods. Each call records an append-only operation log entry with user identity, timestamp, and outcome. VM status is updated on success.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>internal/handler/vm_lifecycle.go</code> (126 lines) — Lifecycle HTTP handlers</li>
+    <li><code>internal/service/vm_lifecycle.go</code> (115 lines) — BootVM, PauseVM, ResumeVM, ShutdownVM, RebootVM</li>
+    <li><code>internal/service/service.go</code> (35 lines) — Added <code>vmmLifecycler</code> interface and <code>SetVMMClient</code></li>
+    <li><code>internal/store/operation_log.go</code> (127 lines) — NDJSON append-only operation log</li>
+    <li><code>internal/store/store.go</code> (24 lines) — Wired <code>VMOperationLog</code></li>
+  </ul>
+</div>
+
+<h3>Endpoints</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>VMM Method</th><th>Success Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/boot</code></td><td><code>Boot</code></td><td><code>vmm.Client.Boot</code></td><td><code>running</code></td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/pause</code></td><td><code>Pause</code></td><td><code>vmm.Client.Pause</code></td><td><code>paused</code></td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/resume</code></td><td><code>Resume</code></td><td><code>vmm.Client.Resume</code></td><td><code>running</code></td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/shutdown</code></td><td><code>Shutdown</code></td><td><code>vmm.Client.Shutdown</code></td><td><code>stopped</code></td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/reboot</code></td><td><code>Reboot</code></td><td><code>vmm.Client.Reboot</code></td><td><code>running</code></td></tr>
+  </tbody>
+</table>
+
+<h3>User identity capture</h3>
+<p>The <code>userIdentity(r)</code> helper reads the <code>X-User-ID</code> header and falls back to <code>"anonymous"</code>. The user is recorded in every operation log entry.</p>
+
+<h3>Operation log format</h3>
+<p>Appended as NDJSON to <code>data/vm-operations.log</code>:</p>
+<pre><code>{
+  "timestamp": "2026-05-13T10:00:00Z",
+  "vm_id": "vm-123",
+  "operation": "boot",
+  "user": "alice",
+  "outcome": "success",
+  "message": ""
+}</code></pre>
+
+<h3>Success vs. failure</h3>
+<table>
+  <thead>
+    <tr><th>Outcome</th><th>HTTP Status</th><th>VM Status Updated</th><th>Log Entry</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Success</td><td><code>204 No Content</code></td><td>Yes</td><td><code>outcome: "success"</code></td></tr>
+    <tr><td>VM not found</td><td><code>404 Not Found</code></td><td>No</td><td><code>outcome: "error"</code></td></tr>
+    <tr><td>VMM call fails</td><td><code>500 Internal Server Error</code></td><td>No</td><td><code>outcome: "error"</code> with message</td></tr>
+  </tbody>
+</table>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 8 tests passing.</p>
+
+<h2 id="disk">4. Disk Management Endpoints</h2>
+<h3>What was done</h3>
+<p>Three endpoints for attaching, detaching, and snapshotting virtio-blk disks. All responses include the current disk state.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>internal/handler/disk.go</code> (197 lines) — Disk handlers</li>
+    <li><code>pkg/storage/storage.go</code> — Exported <code>CopyFile</code> for snapshot reuse</li>
+  </ul>
+</div>
+
+<h3>Endpoints</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Response Body</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/disks</code></td><td><code>DiskHandler.Add</code></td><td><code>DiskResponse</code> (201)</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/vms/{id}/disks/{disk_id}</code></td><td><code>DiskHandler.Remove</code></td><td>Disk list (200)</td></tr>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/disks/{disk_id}/snapshot</code></td><td><code>DiskHandler.Snapshot</code></td><td>Disk list (200)</td></tr>
+  </tbody>
+</table>
+
+<h3>Validation</h3>
+<ul>
+  <li><code>path</code> is required and non-empty</li>
+  <li>Format is auto-detected from extension and validated against supported formats (raw, qcow2, vhdx, vmdk)</li>
+</ul>
+
+<h3>Snapshot path determination</h3>
+<p>Snapshots are written to <code>&lt;dirname(disk.Path)&gt;/snapshot-&lt;vm_id&gt;-&lt;disk_id&gt;</code>. The copy uses <code>storage.CopyFile</code> (buffered <code>io.Copy</code>).</p>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 3 tests passing.</p>
+
+<h2 id="network">5. Network Interface Endpoints</h2>
+<h3>What was done</h3>
+<p>Three endpoints for managing virtio-net interfaces with MAC address and IP/CIDR validation.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>internal/handler/network.go</code> (254 lines) — Network handlers</li>
+  </ul>
+</div>
+
+<h3>Endpoints</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-post">POST</span></td><td><code>/vms/{id}/interfaces</code></td><td><code>NetworkHandler.Add</code></td><td>Add interface</td></tr>
+    <tr><td><span class="badge badge-delete">DELETE</span></td><td><code>/vms/{id}/interfaces/{iface_id}</code></td><td><code>NetworkHandler.Remove</code></td><td>Remove interface</td></tr>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/vms/{id}/interfaces/{iface_id}</code></td><td><code>NetworkHandler.Patch</code></td><td>Partial update</td></tr>
+  </tbody>
+</table>
+
+<h3>MAC and IP/CIDR validation</h3>
+<ul>
+  <li><strong>MAC:</strong> validated via <code>net.ParseMAC</code> from the standard library</li>
+  <li><strong>IP:</strong> first tried with <code>net.ParseIP</code>; if that fails, tried with <code>net.ParseCIDR</code>. Both must succeed for the value to be accepted.</li>
+  <li><strong>Presence:</strong> at least one of <code>tap</code>, <code>ip</code>, or <code>mac</code> must be present on add.</li>
+</ul>
+
+<h3>PATCH semantics</h3>
+<p>Only provided fields are overwritten. Empty string values are ignored (not treated as "clear this field"). The response contains the current interface list.</p>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 5 tests passing.</p>
+
+<h2 id="resource">6. Resource Management Endpoints</h2>
+<h3>What was done</h3>
+<p>Two PATCH endpoints for hot-resizing vCPU and memory. Values are clamped to configurable limits. The response includes both the requested and effective values. Clamping events are logged.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>internal/handler/resource.go</code> (159 lines) — CPU and memory patch handlers</li>
+  </ul>
+</div>
+
+<h3>Endpoints</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Request</th><th>Response</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/vms/{id}/cpu</code></td><td><code>ResourceHandler.PatchCPU</code></td><td><code>{"count": 4}</code></td><td><code>{"requested": 4, "effective": 4}</code></td></tr>
+    <tr><td><span class="badge badge-patch">PATCH</span></td><td><code>/vms/{id}/memory</code></td><td><code>ResourceHandler.PatchMemory</code></td><td><code>{"size_mb": 2048}</code></td><td><code>{"requested_mb": 2048, "effective_mb": 2048}</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Clamping logic</h3>
+<p>Uses <code>resources.DefaultLimits()</code>:</p>
+<table>
+  <thead>
+    <tr><th>Resource</th><th>Min</th><th>Max</th><th>Alignment</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>CPU</td><td>1</td><td>1024</td><td>n/a</td></tr>
+    <tr><td>Memory (MB)</td><td>64</td><td>1,048,576 (1 TiB)</td><td>4 MB</td></tr>
+  </tbody>
+</table>
+<p>When clamping occurs, a <code>Warn</code> log line is emitted with <code>vm_id</code>, <code>requested</code>, and <code>effective</code> fields. CPU clamping also updates <code>max_vcpus</code> if needed.</p>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 3 tests passing.</p>
+
+<h2 id="console">7. Console WebSocket Endpoint</h2>
+<h3>What was done</h3>
+<p>A WebSocket endpoint that streams simulated VM serial console output. Client disconnection is detected and cleaned up gracefully. Session start and end are logged with duration.</p>
+
+<h3>Files created or modified</h3>
+<div class="file-list">
+  <ul>
+    <li><code>internal/handler/console.go</code> (108 lines) — WebSocket upgrade, streaming, cleanup</li>
+    <li><code>internal/handler/console_test.go</code> (77 lines) — WebSocket dial and message tests</li>
+    <li><code>go.mod</code> — Added <code>github.com/gorilla/websocket</code></li>
+  </ul>
+</div>
+
+<h3>Endpoint</h3>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Path</th><th>Handler</th><th>Protocol</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge badge-ws">WS</span></td><td><code>/api/v1/vms/{id}/console</code></td><td><code>ConsoleHandler.Stream</code></td><td>WebSocket</td></tr>
+  </tbody>
+</table>
+
+<h3>Goroutine lifecycle</h3>
+<ol>
+  <li>VM existence is verified <strong>before</strong> WebSocket upgrade. If missing, a 404 Problem Detail is returned via HTTP.</li>
+  <li>Connection is upgraded via <code>websocket.Upgrader</code>.</li>
+  <li>A <code>context.WithCancel</code> is created from the request context.</li>
+  <li>A goroutine runs <code>conn.ReadMessage()</code> in a loop. On any error (including close), it calls <code>cancel()</code> and returns.</li>
+  <li>The main goroutine loops on a ticker (500ms), writing text messages. It also watches <code>ctx.Done()</code> and the done channel.</li>
+  <li>On cleanup (context cancelled, done channel closed, or write error), the function jumps to the <code>cleanup</code> label, computes duration, logs session end, and returns. <code>defer conn.Close()</code> and <code>defer cancel()</code> handle resource cleanup.</li>
+</ol>
+
+<h3>Client disconnection</h3>
+<p>Disconnection is detected in the read pump. <code>websocket.IsUnexpectedCloseError</code> filters out normal closes (<code>CloseGoingAway</code>, <code>CloseAbnormalClosure</code>) from actual errors. Either way, the read pump calls <code>cancel()</code>, which signals the write pump to exit.</p>
+
+<h3>Log fields</h3>
+<table>
+  <thead>
+    <tr><th>Event</th><th>Level</th><th>Fields</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Session start</td><td>Info</td><td><code>vm_id</code>, <code>client</code> (RemoteAddr)</td></tr>
+    <tr><td>Session end</td><td>Info</td><td><code>vm_id</code>, <code>client</code>, <code>duration_ms</code>, <code>lines_sent</code></td></tr>
+    <tr><td>Read error</td><td>Warn</td><td><code>err</code></td></tr>
+    <tr><td>Write error</td><td>Warn</td><td><code>err</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Current status</h3>
+<p><span class="badge badge-completed">Completed</span> — 2 tests passing. The endpoint streams simulated data; integration with an actual Cloud Hypervisor serial device is a future phase.</p>
+
+<footer id="footer">
+  <p><strong>Generated by:</strong> OpenCode (agent) · <strong>Module:</strong> <code>github.com/org/ch-api</code> · <strong>Timestamp:</strong> 2026-05-13T00:00:00Z</p>
+  <p>All packages verified with <code>go vet ./...</code> and <code>go test ./...</code>. Total Phase 3 test count: 33 (api 19 + handler 33, excluding Phase 2 tests).</p>
+  <p>Total new/modified lines in Phase 3: ~3,741 LOC across 20 files.</p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>

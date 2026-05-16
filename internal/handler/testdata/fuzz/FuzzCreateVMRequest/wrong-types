@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"name\":123,\"cpus\":null,\"memory\":null,\"kernel\":null,\"disks\":[{}]}")

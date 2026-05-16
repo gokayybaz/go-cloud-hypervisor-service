@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"name\":\"test-vm\",\"cpus\":{\"boot_vcpus\":2,\"max_vcpus\":4},\"memory\":{\"size\":1024},\"kernel\":{\"path\":\"/boot/vmlinuz\"},\"disks\":[{\"path\":\"/disk.raw\"}]}")

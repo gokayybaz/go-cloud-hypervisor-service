@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"name\":\"x\",\"cpus\":{\"boot_vcpus\":1,\"max_vcpus\":1},\"memory\":{\"size\":256},\"kernel\":{\"path\":\"/boot\"},\"disks\":[{\"path\":\"/d.raw\"}],\"net\":[{\"tap\":\"t0\"}]}")

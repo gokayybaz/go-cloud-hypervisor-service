@@ -1,0 +1,272 @@
+# Cloud Hypervisor API — GoReleaser Configuration
+# https://goreleaser.com/
+
+version: 2
+
+project_name: ch-api
+
+# ---------------------------------------------------------------------------
+# Before hooks
+# ---------------------------------------------------------------------------
+
+before:
+  hooks:
+    - go mod tidy
+    - go test -race ./...
+    - go vet ./...
+
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
+
+builds:
+  - id: ch-api
+    main: ./cmd/ch-api
+    binary: ch-api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -extldflags '-static'
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+# ---------------------------------------------------------------------------
+# Archives
+# ---------------------------------------------------------------------------
+
+archives:
+  - id: ch-api
+    builds:
+      - ch-api
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}-
+      {{ .Version }}-
+      {{- .Os }}-
+      {{- .Arch }}
+    files:
+      - systemd/ch-api.service
+      - README.md
+      - LICENSE
+      - RUNBOOK.md
+      - docs/systemd.md
+      - docs/configuration.md
+
+# ---------------------------------------------------------------------------
+# Checksums
+# ---------------------------------------------------------------------------
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# ---------------------------------------------------------------------------
+# Signatures (cosign)
+# ---------------------------------------------------------------------------
+
+signs:
+  - id: cosign-keyless
+    # Keyless signing via OIDC (GitHub Actions) is the default.
+    # For local signing, set COSIGN_EXPERIMENTAL=1 and use:
+    #   goreleaser release --snapshot
+    # Or set up a cosign key pair and reference it below.
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    cmd: cosign
+    args:
+      - sign-blob
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "--yes"
+      - "${artifact}"
+    artifacts: all
+
+# ---------------------------------------------------------------------------
+# SBOM
+# ---------------------------------------------------------------------------
+
+sboms:
+  - id: ch-api
+    artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+    cmd: syft
+    args:
+      - "${artifact}"
+      - "-o"
+      - "spdx-json=${document}"
+
+# ---------------------------------------------------------------------------
+# Docker images
+# ---------------------------------------------------------------------------
+
+dockers:
+  - image_templates:
+      - "ghcr.io/org/ch-api:{{ .Tag }}-amd64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}-amd64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}.{{ .Minor }}-amd64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    goos: linux
+    goarch: amd64
+  - image_templates:
+      - "ghcr.io/org/ch-api:{{ .Tag }}-arm64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}-arm64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}.{{ .Minor }}-arm64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    goos: linux
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/org/ch-api:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/org/ch-api:{{ .Tag }}-amd64"
+      - "ghcr.io/org/ch-api:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/org/ch-api:v{{ .Major }}"
+    image_templates:
+      - "ghcr.io/org/ch-api:v{{ .Major }}-amd64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}-arm64"
+  - name_template: "ghcr.io/org/ch-api:v{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - "ghcr.io/org/ch-api:v{{ .Major }}.{{ .Minor }}-amd64"
+      - "ghcr.io/org/ch-api:v{{ .Major }}.{{ .Minor }}-arm64"
+  - name_template: "ghcr.io/org/ch-api:latest"
+    image_templates:
+      - "ghcr.io/org/ch-api:{{ .Tag }}-amd64"
+      - "ghcr.io/org/ch-api:{{ .Tag }}-arm64"
+
+# ---------------------------------------------------------------------------
+# Changelog
+# ---------------------------------------------------------------------------
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^style:"
+      - "^refactor:"
+      - "typo"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "Breaking Changes"
+      regexp: "^.*?break(ing)?\\s*!"
+      order: 0
+    - title: "Features"
+      regexp: "^.*?feat(\\([^\\)]*\\))?!?:"
+      order: 1
+    - title: "Bug Fixes"
+      regexp: "^.*?fix(\\([^\\)]*\\))?!?:"
+      order: 2
+    - title: "Security"
+      regexp: "^.*?sec(urity)?(\\([^\\)]*\\))?!?:"
+      order: 3
+    - title: "Performance"
+      regexp: "^.*?perf(\\([^\\)]*\\))?!?:"
+      order: 4
+    - title: "Documentation"
+      regexp: "^.*?docs(\\([^\\)]*\\))?!?:"
+      order: 5
+    - title: "Tests"
+      regexp: "^.*?test(\\([^\\)]*\\))?!?:"
+      order: 6
+    - title: "Build & CI"
+      regexp: "^.*?(build|ci)(\\([^\\)]*\\))?!?:"
+      order: 7
+    - title: "Refactoring"
+      regexp: "^.*?refactor(\\([^\\)]*\\))?!?:"
+      order: 8
+    - title: "Other"
+      order: 999
+
+# ---------------------------------------------------------------------------
+# GitHub Release
+# ---------------------------------------------------------------------------
+
+release:
+  github:
+    owner: org
+    name: ch-api
+  name_template: "{{ .ProjectName }} {{ .Tag }}"
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Release Notes
+
+    For full details see the [CHANGELOG](https://github.com/org/ch-api/blob/main/CHANGELOG.md).
+
+    ## Quick Install
+
+    ```bash
+    # Download and install
+curl -LO https://github.com/org/ch-api/releases/download/{{ .Tag }}/ch-api-{{ .Version }}-linux-amd64.tar.gz
+tar xzf ch-api-{{ .Version }}-linux-amd64.tar.gz
+sudo mv ch-api /usr/local/bin/
+    ```
+
+    ## Verify Signature
+
+    ```bash
+cosign verify-blob --signature ch-api-{{ .Version }}-linux-amd64.tar.gz.sig \
+  --certificate ch-api-{{ .Version }}-linux-amd64.tar.gz.pem \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github.com/org/ch-api/.github/workflows/' \
+  ch-api-{{ .Version }}-linux-amd64.tar.gz
+    ```
+
+    ## Docker
+
+    ```bash
+docker pull ghcr.io/org/ch-api:{{ .Tag }}
+    ```
+
+  footer: |
+    ## Assets
+
+    | File | Description |
+    |------|-------------|
+    | `ch-api-{{ .Version }}-linux-amd64.tar.gz` | Linux amd64 binary + systemd unit |
+    | `ch-api-{{ .Version }}-linux-arm64.tar.gz` | Linux arm64 binary + systemd unit |
+    | `ch-api_{{ .Version }}_checksums.txt` | SHA-256 checksums for all assets |
+    | `ch-api_{{ .Version }}_sbom.spdx.json` | SPDX SBOM for supply-chain security |
+    | `*.sig` / `*.pem` | cosign signatures and certificates |
+
+# ---------------------------------------------------------------------------
+# GitHub Annotations
+# ---------------------------------------------------------------------------
+
+# Publish annotations to GitHub Actions for PRs
+# github_urls:
+#   download: https://github.com/org/ch-api/releases
+
+# ---------------------------------------------------------------------------
+# Snapshot
+# ---------------------------------------------------------------------------
+
+snapshot:
+  version_template: "{{ .Version }}-snapshot-{{ .ShortCommit }}"

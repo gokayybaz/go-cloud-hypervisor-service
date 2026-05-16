@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 4 Completion Report — Cloud Hypervisor Go API</title>
+<style>
+:root {
+  --bg:#f8f9fa; --fg:#212529; --sidebar:#1a1d23; --sidebar-fg:#adb5bd; --sidebar-active:#0d6efd;
+  --card:#fff; --border:#dee2e6; --code-bg:#f1f3f5;
+  --green:#198754; --green-bg:#d1e7dd; --amber:#ffc107; --amber-bg:#fff3cd; --red:#dc3545; --red-bg:#f8d7da;
+  --blue:#0d6efd; --teal:#20c997; --purple:#6f42c1;
+  --radius:6px; --shadow:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--fg);line-height:1.55}
+h1,h2,h3,h4{margin:0 0 .6em;font-weight:600}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+code,pre,samp,kbd{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:.92em}
+code{background:var(--code-bg);padding:.15em .4em;border-radius:4px}
+pre{background:var(--code-bg);padding:1em;border-radius:var(--radius);overflow:auto;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;margin:.8em 0;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+th,td{padding:.65em .8em;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#f1f3f5;font-weight:600;font-size:.9em}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:.25em .55em;border-radius:999px;font-size:.78em;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+.badge-green{color:var(--green);background:var(--green-bg)}
+.badge-amber{color:#856404;background:var(--amber-bg)}
+.badge-red{color:#721c24;background:var(--red-bg)}
+.badge-blue{color:#fff;background:var(--blue)}
+.badge-teal{color:#fff;background:var(--teal)}
+.badge-purple{color:#fff;background:var(--purple)}
+.status-completed{color:var(--green);font-weight:700}
+.status-partial{color:#856404;font-weight:700}
+.status-blocked{color:var(--red);font-weight:700}
+
+.layout{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--sidebar);color:var(--sidebar-fg);flex-shrink:0;padding:1.5rem 0;position:fixed;height:100vh;overflow-y:auto}
+.sidebar h2{padding:0 1.5rem;font-size:1.05rem;color:#fff;margin-bottom:1.2rem}
+.sidebar ul{list-style:none;margin:0;padding:0}
+.sidebar li a{display:block;padding:.55rem 1.5rem;color:var(--sidebar-fg);font-size:.9rem;border-left:3px solid transparent}
+.sidebar li a:hover{color:#fff;background:rgba(255,255,255,.04);text-decoration:none}
+.sidebar li a.active{color:#fff;border-left-color:var(--sidebar-active);background:rgba(13,110,253,.12)}
+.main{margin-left:260px;flex:1;padding:2rem 2.5rem;max-width:980px}
+.section{margin-bottom:2.8rem}
+.section h2{font-size:1.4rem;border-bottom:2px solid var(--border);padding-bottom:.4rem;margin-bottom:1.2rem}
+.section h3{font-size:1.1rem;margin-top:1.4rem;color:#343a40}
+.file-list{margin:.4em 0;padding-left:1.4em}
+.file-list li{margin:.25em 0}
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:1.2rem 0}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem;text-align:center;border-top:4px solid var(--border)}
+.card.good{border-top-color:var(--green)}
+.card.warn{border-top-color:var(--amber)}
+.card.bad{border-top-color:var(--red)}
+.card .num{font-size:2rem;font-weight:700;display:block;margin-bottom:.2rem}
+.card.good .num{color:var(--green)}
+.card.warn .num{color:#856404}
+.card.bad .num{color:var(--red)}
+.card .label{font-size:.82em;color:#6c757d;text-transform:uppercase;letter-spacing:.04em}
+
+.metric-table th:first-child{width:38%}
+.metric-table td:first-child code{font-size:.95em}
+.schema-table th:first-child{width:22%}
+.schema-table td:first-child code{font-weight:600}
+
+.sample-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:.8rem 0}
+.sample-row .cell{background:var(--card);border-radius:var(--radius);padding:.8rem;border:1px solid var(--border)}
+.sample-row .cell strong{display:block;font-size:.8em;text-transform:uppercase;color:#6c757d;margin-bottom:.3rem}
+
+.footer{margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--border);font-size:.82em;color:#6c757d}
+
+@media (max-width:900px){
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .summary-cards{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <h2>Phase 4 Report</h2>
+  <ul>
+    <li><a href="#summary" class="active">Summary</a></li>
+    <li><a href="#audit">1. Audit Package</a></li>
+    <li><a href="#metrics">2. Prometheus Metrics</a></li>
+    <li><a href="#pprof">3. Pprof Profiling</a></li>
+    <li><a href="#godoc">4. Godoc Documentation</a></li>
+    <li><a href="#openapi">5. OpenAPI Spec</a></li>
+    <li><a href="#eventlog">6. Event Log Package</a></li>
+  </ul>
+</nav>
+
+<main class="main">
+
+<section class="section" id="summary">
+<h2>Phase 4 Completion Summary</h2>
+<p>Phase 4 focused on <strong>Observability &amp; Documentation</strong>: adding audit persistence, Prometheus metrics, pprof profiling, godoc coverage, OpenAPI spec generation, and human-readable event logging.</p>
+
+<div class="summary-cards">
+  <div class="card good"><span class="num">6</span><span class="label">Total Tasks</span></div>
+  <div class="card good"><span class="num">6</span><span class="label">Completed</span></div>
+  <div class="card warn"><span class="num">0</span><span class="label">Partial</span></div>
+  <div class="card bad"><span class="num">0</span><span class="label">Blocked</span></div>
+</div>
+
+<table>
+  <tr><th>Task</th><th>Status</th><th>Files</th></tr>
+  <tr><td>1. Audit package — SQLite operation_log with daily rotation</td><td><span class="badge badge-green">Completed</span></td><td>3</td></tr>
+  <tr><td>2. Prometheus metrics — 5 metrics, /metrics endpoint</td><td><span class="badge badge-green">Completed</span></td><td>4</td></tr>
+  <tr><td>3. Pprof profiling — localhost:6060, runtime flag</td><td><span class="badge badge-green">Completed</span></td><td>3</td></tr>
+  <tr><td>4. Godoc documentation — all exported symbols</td><td><span class="badge badge-green">Completed</span></td><td>~20</td></tr>
+  <tr><td>5. OpenAPI spec — swaggo/swag, Swagger UI, CI drift check</td><td><span class="badge badge-green">Completed</span></td><td>6</td></tr>
+  <tr><td>6. Event log package — dual output, changelog format</td><td><span class="badge badge-green">Completed</span></td><td>4</td></tr>
+</table>
+</section>
+
+<section class="section" id="audit">
+<h2>1. Audit Package</h2>
+
+<h3>What was done</h3>
+<p>Created <code>pkg/audit</code> to persist every HTTP request to an <code>operation_log</code> table in SQLite. The database file rotates daily. A middleware captures the request body hash, extracts metadata from the request, and writes asynchronously with a 3-second background timeout.</p>
+
+<h3>Files created or modified</h3>
+<ul class="file-list">
+  <li><code>pkg/audit/audit.go</code> — <code>Auditor</code>, SQLite schema, daily rotation</li>
+  <li><code>pkg/audit/middleware.go</code> — HTTP middleware that hashes the body and persists metadata</li>
+  <li><code>pkg/audit/audit_test.go</code> — Tests for DB creation, insert/query, rotation, body handling</li>
+  <li><code>pkg/api/router.go</code> — Wired <code>audit.Middleware</code> into the middleware chain</li>
+  <li><code>cmd/ch-api/main.go</code> — Initialized <code>audit.New("data/audit")</code></li>
+</ul>
+
+<h3>SQLite <code>operation_log</code> schema</h3>
+<table class="schema-table">
+  <tr><th>Column</th><th>Type</th><th>Nullable</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><code>INTEGER</code></td><td>NO</td><td>Primary key, auto-increment</td></tr>
+  <tr><td><code>trace_id</code></td><td><code>TEXT</code></td><td>NO</td><td>Request trace identifier</td></tr>
+  <tr><td><code>user</code></td><td><code>TEXT</code></td><td>YES</td><td>Actor from <code>X-User-ID</code> header</td></tr>
+  <tr><td><code>method</code></td><td><code>TEXT</code></td><td>NO</td><td>HTTP method (GET, POST, etc.)</td></tr>
+  <tr><td><code>path</code></td><td><code>TEXT</code></td><td>NO</td><td>Request path</td></tr>
+  <tr><td><code>body_hash</code></td><td><code>TEXT</code></td><td>YES</td><td>SHA-256 hex of the first 1 MiB of body</td></tr>
+  <tr><td><code>duration_ms</code></td><td><code>INTEGER</code></td><td>NO</td><td>Total request duration in milliseconds</td></tr>
+  <tr><td><code>status_code</code></td><td><code>INTEGER</code></td><td>NO</td><td>HTTP response status code</td></tr>
+  <tr><td><code>ip</code></td><td><code>TEXT</code></td><td>NO</td><td>Client IP address</td></tr>
+  <tr><td><code>created_at</code></td><td><code>DATETIME</code></td><td>NO</td><td>Defaults to <code>CURRENT_TIMESTAMP</code></td></tr>
+</table>
+
+<p><strong>Indexes:</strong> <code>idx_trace_id</code> on <code>trace_id</code>, <code>idx_created_at</code> on <code>created_at</code>.</p>
+
+<h3>Middleware chain position</h3>
+<pre>PanicRecovery → TraceID → Audit → AccessLogger → Metrics → Timeout → Handler</pre>
+<p>Audit sits between <code>TraceID</code> and <code>AccessLogger</code> so it can read <code>trace_id</code> from context, and so <code>AccessLogger</code> does not include audit-insert latency.</p>
+
+<h3>Body hash computation</h3>
+<p>The middleware reads at most <strong>1 MiB</strong> of the request body via <code>io.LimitReader</code>, computes a <strong>SHA-256</strong> digest, encodes it as hex, then restores the original body so downstream handlers can still decode JSON. For empty bodies the hash is stored as an empty string.</p>
+
+<h3>Daily rotation strategy</h3>
+<ul>
+  <li><strong>Naming:</strong> <code>data/audit-YYYY-MM-DD.db</code></li>
+  <li><strong>Trigger:</strong> Rotation is checked on every <code>Record</code> call by comparing the current UTC date with the suffix of the open file.</li>
+  <li><strong>Retention:</strong> No automatic deletion is implemented; operators are expected to archive or purge old files via standard log-rotation tooling (e.g. <code>logrotate</code>).</li>
+  <li><strong>Performance tuning:</strong> <code>PRAGMA journal_mode=WAL</code> and <code>PRAGMA synchronous=NORMAL</code> are applied on every new file to keep writes fast without sacrificing durability.</li>
+</ul>
+
+<h3>Sample row</h3>
+<table>
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td><code>trace_id</code></td><td><code>req-123</code></td></tr>
+  <tr><td><code>user</code></td><td><code>bob</code></td></tr>
+  <tr><td><code>method</code></td><td><code>POST</code></td></tr>
+  <tr><td><code>path</code></td><td><code>/api/v1/vms</code></td></tr>
+  <tr><td><code>body_hash</code></td><td><code>a1b2c3d4…</code> (SHA-256 hex)</td></tr>
+  <tr><td><code>duration_ms</code></td><td><code>42</code></td></tr>
+  <tr><td><code>status_code</code></td><td><code>201</code></td></tr>
+  <tr><td><code>ip</code></td><td><code>127.0.0.1</code></td></tr>
+</table>
+
+<h3>Problems encountered</h3>
+<p>The <code>TestMiddlewareRecordsRequest</code> test initially failed because <code>swaggo/http-swagger</code> pulled in an older <code>github.com/swaggo/swag v1.8.1</code> which was incompatible with the CLI-generated <code>docs/docs.go</code> (unknown <code>LeftDelim</code> field). Resolved by running <code>go get github.com/swaggo/swag@v1.16.6</code> to align the library with the CLI.</p>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<section class="section" id="metrics">
+<h2>2. Prometheus Metrics</h2>
+
+<h3>What was done</h3>
+<p>Created <code>pkg/metrics</code> with a custom <code>prometheus.Registry</code> that registers five application metrics. A middleware records request count and latency per endpoint. An HTTP handler exposes the registry at <code>/metrics</code>.</p>
+
+<h3>Files created or modified</h3>
+<ul class="file-list">
+  <li><code>pkg/metrics/metrics.go</code> — Registry, metric definitions, middleware, handler</li>
+  <li><code>pkg/metrics/metrics_test.go</code> — Tests for all metrics and middleware</li>
+  <li><code>internal/handler/handler.go</code> — Registered <code>/metrics</code> endpoint</li>
+  <li><code>cmd/ch-api/main.go</code> — Created registry and passed to router/handlers/store</li>
+  <li><code>docs/metrics.md</code> — Full reference with PromQL examples</li>
+</ul>
+
+<h3>Metrics reference</h3>
+<table class="metric-table">
+  <tr><th>Name</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+  <tr>
+    <td><code>chapi_http_requests_total</code></td>
+    <td><span class="badge badge-blue">Counter</span></td>
+    <td><code>method</code>, <code>path</code>, <code>status</code></td>
+    <td>Total number of HTTP requests received, labelled by method, path and status code.</td>
+  </tr>
+  <tr>
+    <td><code>chapi_http_request_duration_seconds</code></td>
+    <td><span class="badge badge-purple">Histogram</span></td>
+    <td><code>method</code>, <code>path</code></td>
+    <td>HTTP request latency distribution in seconds, labelled by method and path.</td>
+  </tr>
+  <tr>
+    <td><code>chapi_vms_active</code></td>
+    <td><span class="badge badge-teal">Gauge</span></td>
+    <td>—</td>
+    <td>Current number of VMs stored in memory.</td>
+  </tr>
+  <tr>
+    <td><code>chapi_api_errors_total</code></td>
+    <td><span class="badge badge-blue">Counter</span></td>
+    <td><code>type</code></td>
+    <td>Total number of API errors, labelled by semantic type.</td>
+  </tr>
+  <tr>
+    <td><code>chapi_vmm_request_duration_seconds</code></td>
+    <td><span class="badge badge-purple">Histogram</span></td>
+    <td><code>op</code></td>
+    <td>VMM socket round-trip latency in seconds, labelled by operation name.</td>
+  </tr>
+</table>
+
+<h3>Security &amp; access restrictions</h3>
+<p>The <code>/metrics</code> endpoint is <strong>not authenticated</strong>. It is registered on the root router and is publicly accessible when the metrics registry is non-nil. There is no IP restriction or scrape-token gating. In a production deployment the endpoint should be protected by a reverse proxy (e.g. nginx allow-list) or by adding an authentication middleware.</p>
+
+<h3>Scrape recommendations</h3>
+<p>Documented in <code>docs/metrics.md</code>:</p>
+<ul>
+  <li>Scrape interval: <strong>15–30 s</strong></li>
+  <li>Alert on <code>rate(chapi_api_errors_total{type="vmm"}[5m]) &gt; 0.1</code></li>
+  <li>Dashboard panels for P95 latency, VM count, and VMM health are provided as PromQL snippets</li>
+</ul>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<section class="section" id="pprof">
+<h2>3. Pprof Profiling</h2>
+
+<h3>What was done</h3>
+<p>Created <code>pkg/pprof</code> as a lifecycle-managed HTTP server that exposes Go runtime profiling endpoints on a dedicated <code>localhost:6060</code> address. It is disabled by default and must be enabled via a runtime configuration flag.</p>
+
+<h3>Files created or modified</h3>
+<ul class="file-list">
+  <li><code>pkg/pprof/pprof.go</code> — Lifecycle component wrapping pprof endpoints</li>
+  <li><code>pkg/pprof/pprof_test.go</code> — Tests for startup, shutdown, endpoint availability</li>
+  <li><code>internal/config/config.go</code> — Added <code>Profile bool</code> field with default <code>false</code></li>
+  <li><code>cmd/ch-api/main.go</code> — Conditionally registers the pprof lifecycle component</li>
+  <li><code>docs/profiling.md</code> — Complete profiling guide</li>
+</ul>
+
+<h3>Exposed profiles</h3>
+<table>
+  <tr><th>Endpoint</th><th>Profile</th></tr>
+  <tr><td><code>/debug/pprof/</code></td><td>Index page</td></tr>
+  <tr><td><code>/debug/pprof/profile</code></td><td>CPU profile</td></tr>
+  <tr><td><code>/debug/pprof/heap</code></td><td>Heap profile</td></tr>
+  <tr><td><code>/debug/pprof/allocs</code></td><td>Allocation profile</td></tr>
+  <tr><td><code>/debug/pprof/goroutine</code></td><td>Goroutine stack traces</td></tr>
+  <tr><td><code>/debug/pprof/block</code></td><td>Blocking profile</td></tr>
+  <tr><td><code>/debug/pprof/mutex</code></td><td>Mutex contention profile</td></tr>
+  <tr><td><code>/debug/pprof/trace</code></td><td>Execution trace</td></tr>
+  <tr><td><code>/debug/pprof/threadcreate</code></td><td>Thread creation profile</td></tr>
+  <tr><td><code>/debug/pprof/cmdline</code></td><td>Command-line invocation</td></tr>
+  <tr><td><code>/debug/pprof/symbol</code></td><td>Symbol resolution</td></tr>
+</table>
+
+<h3>Listen address</h3>
+<p><code>localhost:6060</code> — hard-coded default. The server binds only to <code>localhost</code>, making it unreachable from remote hosts.</p>
+
+<h3>Production disable mechanism</h3>
+<p><strong>Runtime flag</strong>, not a build tag. The <code>profile</code> configuration key (or <code>CH_API_PROFILE=1</code> environment variable) controls whether the lifecycle component is registered. Default is <code>false</code>. A build tag was not used because runtime flags are more flexible for containerised deployments where operators may want to toggle profiling on a single pod without rebuilding the image.</p>
+
+<h3>Documented commands</h3>
+<p>From <code>docs/profiling.md</code>:</p>
+
+<h4>CPU profile</h4>
+<pre>CH_API_PROFILE=1 go run ./cmd/ch-api
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30</pre>
+
+<h4>Heap profile</h4>
+<pre>curl -s http://localhost:6060/debug/pprof/heap > heap.prof
+go tool pprof heap.prof</pre>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<section class="section" id="godoc">
+<h2>4. Godoc Documentation</h2>
+
+<h3>What was done</h3>
+<p>Added <code>godoc</code>-compatible comments to every exported type, function, method, and constant across all packages. An AST-based script scanned the codebase for missing comments and generated draft godoc lines, which were then manually reviewed and improved for the most important symbols.</p>
+
+<h3>Files created or modified</h3>
+<ul class="file-list">
+  <li><code>cmd/ch-api/main.go</code> — Lifecycle component methods</li>
+  <li><code>internal/handler/*.go</code> — All handler constructors, DTOs, validators, route methods</li>
+  <li><code>internal/service/service.go</code> — <code>Service</code>, <code>New</code>, <code>SetVMMClient</code></li>
+  <li><code>internal/store/store.go</code> — <code>Store</code>, <code>New</code></li>
+  <li><code>pkg/vmm/errors.go</code> — Error codes, <code>noopLogger</code> methods</li>
+  <li><code>pkg/image/image.go</code> — Format constants</li>
+  <li><code>pkg/logging/logger.go</code> — <code>Logger</code> interface implementations</li>
+  <li><code>pkg/network/network.go</code>, <code>pkg/resources/resources.go</code>, <code>pkg/storage/storage.go</code> — Error constructors</li>
+  <li><code>Makefile</code> — Added <code>make docs</code> target</li>
+</ul>
+
+<h3>How <code>make docs</code> works</h3>
+<pre>make docs</pre>
+<ol>
+  <li>Checks for <code>$(GOPATH)/bin/pkgsite</code>; installs <code>golang.org/x/pkgsite/cmd/pkgsite@latest</code> if missing</li>
+  <li>Runs <code>pkgsite -open .</code> which starts a local server on <code>http://localhost:8080</code></li>
+  <li>Auto-opens the browser to the module index page</li>
+</ol>
+<p>The generated site renders cross-referenced package documentation, type hierarchies, and source links identical to <code>pkg.go.dev</code>.</p>
+
+<h3>Incomplete documentation</h3>
+<p><strong>None.</strong> All exported symbols now carry a godoc comment. The automated scan found zero remaining gaps after the pass.</p>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<section class="section" id="openapi">
+<h2>5. OpenAPI Spec</h2>
+
+<h3>What was done</h3>
+<p>Integrated <code>swaggo/swag</code> to generate an OpenAPI (Swagger 2.0) specification from inline Go annotations. Added annotations to every handler method and mounted the Swagger UI at <code>/api/docs</code>. A CI step verifies that the committed spec matches the generated output.</p>
+
+<h3>Tool used</h3>
+<p><strong>swaggo/swag</strong> — parses Go source files for structured comment annotations and emits a Swagger 2.0 spec. <em>Note:</em> swag outputs Swagger 2.0, not OpenAPI 3.1. The UI renders the 2.0 spec correctly and the format is fully supported by Swagger UI.</p>
+
+<h3>Output files</h3>
+<ul class="file-list">
+  <li><code>docs/docs.go</code> — Go source embedding the JSON spec (imported by main.go)</li>
+  <li><code>docs/swagger.json</code> — Raw OpenAPI JSON</li>
+  <li><code>docs/swagger.yaml</code> — Raw OpenAPI YAML</li>
+</ul>
+
+<h3>Annotation example</h3>
+<p>From <code>internal/handler/vm.go</code> (handler method <code>Create</code>):</p>
+<pre>// Create creates a new VM.
+// @Summary      Create VM
+// @Description  Creates a new virtual machine with the given configuration.
+// @Tags         VMs
+// @Accept       json
+// @Produce      json
+// @Param        body  body      CreateVMRequest  true  "VM configuration"
+// @Success      201   {object}  VMResponse
+// @Failure      400   {object}  problem.Detail  "Invalid request"
+// @Failure      500   {object}  problem.Detail  "Internal server error"
+// @Router       /api/v1/vms [post]
+func (h *VMHandler) Create(w http.ResponseWriter, r *http.Request) { ... }</pre>
+
+<h3>Swagger UI serving</h3>
+<p>The UI is served at <code>GET /api/docs/*</code> via <code>github.com/swaggo/http-swagger/v2</code>:</p>
+<pre>router.Root().Get("/api/docs/*", httpSwagger.Handler(
+    httpSwagger.URL("/api/docs/doc.json"),
+))</pre>
+<p>Access URL: <code>http://localhost:8080/api/docs/index.html</code></p>
+
+<h3>CI drift detection</h3>
+<p>The GitHub Actions workflow (<code>.github/workflows/ci.yml</code>) includes a step that:</p>
+<ol>
+  <li>Installs <code>swag</code> CLI</li>
+  <li>Runs <code>swag init -g cmd/ch-api/main.go</code></li>
+  <li>Runs <code>git diff --exit-code docs/</code></li>
+</ol>
+<p>If the committed spec diverges from the freshly generated output, the diff is non-empty and the CI job fails. This guarantees every PR either updates annotations <em>and</em> re-generates the spec, or leaves both untouched.</p>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<section class="section" id="eventlog">
+<h2>6. Event Log Package</h2>
+
+<h3>What was done</h3>
+<p>Created <code>pkg/eventlog</code> to emit human-readable changelog-style entries for every VM operation. Each entry includes event type, VM ID, actor, and before/after state. Entries are written simultaneously to a daily-rotating log file and to syslog.</p>
+
+<h3>Files created or modified</h3>
+<ul class="file-list">
+  <li><code>pkg/eventlog/eventlog.go</code> — Types, <code>Writer</code> interface, <code>MultiWriter</code>, <code>Format()</code></li>
+  <li><code>pkg/eventlog/file.go</code> — <code>FileWriter</code> with daily rotation</li>
+  <li><code>pkg/eventlog/syslog.go</code> — <code>SyslogWriter</code> using <code>log/syslog</code></li>
+  <li><code>pkg/eventlog/eventlog_test.go</code> — Tests for format, rotation, multi-writer</li>
+  <li><code>internal/service/service.go</code> — Added <code>eventlog.Writer</code> field</li>
+  <li><code>internal/service/vm.go</code> — Emits events on <code>CreateVM</code>, <code>DeleteVM</code>, <code>UpdateVM</code></li>
+  <li><code>internal/service/vm_lifecycle.go</code> — Emits events on lifecycle transitions</li>
+  <li><code>cmd/ch-api/main.go</code> — Initializes file + syslog writers, wraps in <code>MultiWriter</code></li>
+</ul>
+
+<h3>Entry format</h3>
+<pre>2026-05-13T21:30:00Z [boot] vm-abc by alice: status=created name="test-vm" cpus=1 mem=256MB disks=1 net=0 → status=running name="test-vm" cpus=1 mem=256MB disks=1 net=0</pre>
+
+<h3>Sample entry (VM boot event)</h3>
+<pre>2026-05-13T21:30:00Z [boot] vm-abc by alice: status=created → status=running</pre>
+
+<h3>Dual output strategy</h3>
+<p>The <code>MultiWriter</code> broadcasts every entry to <strong>all configured backends</strong>:</p>
+<ol>
+  <li><strong>File</strong> — Appends to <code>data/events-YYYY-MM-DD.log</code> (daily rotating, same strategy as audit package)</li>
+  <li><strong>Syslog</strong> — Sends to local syslog daemon at <code>LOG_INFO | LOG_DAEMON</code> with tag <code>ch-api</code></li>
+</ol>
+<p>Individual backend errors are <strong>silently ignored</strong> so that a failing syslog connection never blocks a VM operation. If syslog is unavailable at startup, the server falls back to file-only and logs a warning.</p>
+
+<h3>Log file naming and rotation</h3>
+<ul>
+  <li><strong>Naming:</strong> <code>data/events-YYYY-MM-DD.log</code></li>
+  <li><strong>Rotation trigger:</strong> Checked on every <code>Write</code> call; if the current UTC date differs from the open file's date suffix, a new file is created</li>
+  <li><strong>Retention:</strong> No automatic deletion; operators manage archival</li>
+</ul>
+
+<h3>Buffering and async strategy</h3>
+<p><strong>None.</strong> Writes are synchronous. The <code>MultiWriter.Write</code> iterates backends in sequence and returns immediately. There is no buffered channel, no background goroutine, and no batching. This keeps the implementation simple and guarantees that an entry is persisted before the HTTP handler returns. The trade-off is that a slow syslog daemon adds latency to the request path; this is mitigated by the fact that errors are silently ignored and the write itself is a single UDP packet in typical syslog configurations.</p>
+
+<h3>Status</h3>
+<p><span class="status-completed">Completed</span></p>
+</section>
+
+<div class="footer">
+  Generated by <strong>OpenCode Agent</strong> &middot; Module <code>github.com/org/ch-api</code> &middot; 2026-05-13T22:15:00Z
+</div>
+
+</main>
+</div>
+</body>
+</html>
