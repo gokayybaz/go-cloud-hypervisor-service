@@ -18,6 +18,17 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		if s.vmmClient == nil {
 			return fmt.Errorf("vmm client not configured")
 		}
+
+		// VM config'i store'dan al ve CH'ye gönder
+		vm, err := s.store.VMs.Get(id)
+		if err != nil {
+			return fmt.Errorf("get vm config: %w", err)
+		}
+
+		if err := s.vmmClient.Create(ctx, &vm.Config); err != nil {
+			return fmt.Errorf("create vm in vmm: %w", err)
+		}
+
 		return s.vmmClient.Boot(ctx)
 	})
 }

@@ -622,3 +622,24 @@
 {"timestamp":"2026-05-16T14:18:35.171531Z","vm_id":"nonexistent","operation":"boot","user":"anonymous","outcome":"error","message":"vm \"nonexistent\" not found"}
 {"timestamp":"2026-05-16T14:18:35.171971Z","vm_id":"vm-1778941115171823000","operation":"boot","user":"alice","outcome":"success"}
 {"timestamp":"2026-05-16T14:18:35.174909Z","vm_id":"vm-1778941115174655000","operation":"shutdown","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.830174962Z","vm_id":"vm-1778950028830156836","operation":"boot","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.831352749Z","vm_id":"vm-1778950028830156836","operation":"boot","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.83482933Z","vm_id":"nonexistent","operation":"boot","user":"anonymous","outcome":"error","message":"vm \"nonexistent\" not found"}
+{"timestamp":"2026-05-16T16:47:08.836424243Z","vm_id":"vm-1778950028830156836","operation":"pause","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.839570211Z","vm_id":"vm-1778950028830156836","operation":"resume","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.842379756Z","vm_id":"vm-1778950028830156836","operation":"shutdown","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.846189589Z","vm_id":"vm-1778950028830156836","operation":"reboot","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:08.849811921Z","vm_id":"vm-1778950028849083271","operation":"boot","user":"alice","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.443514438Z","vm_id":"vm-1778950029442655022","operation":"boot","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.444798998Z","vm_id":"vm-1778950029444780998","operation":"boot","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.445637093Z","vm_id":"vm-1778950029444780998","operation":"pause","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.446925388Z","vm_id":"vm-1778950029446900955","operation":"boot","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.4470852Z","vm_id":"vm-1778950029446900955","operation":"pause","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.44793593Z","vm_id":"vm-1778950029446900955","operation":"resume","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.449309171Z","vm_id":"vm-1778950029449293101","operation":"boot","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.450143806Z","vm_id":"vm-1778950029449293101","operation":"shutdown","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.451446533Z","vm_id":"vm-1778950029451422447","operation":"boot","user":"test","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.45236524Z","vm_id":"vm-1778950029451422447","operation":"reboot","user":"anonymous","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.454439774Z","vm_id":"nonexistent","operation":"boot","user":"anonymous","outcome":"error","message":"vm \"nonexistent\" not found"}
+{"timestamp":"2026-05-16T16:47:09.456561855Z","vm_id":"vm-1778950029455726459","operation":"boot","user":"alice","outcome":"success"}
+{"timestamp":"2026-05-16T16:47:09.469302016Z","vm_id":"vm-1778950029468238356","operation":"shutdown","user":"anonymous","outcome":"success"}

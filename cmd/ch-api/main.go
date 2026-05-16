@@ -18,6 +18,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/lifecycle"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+        "github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/pprof"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/preflight"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/ratelimit"
@@ -107,6 +108,17 @@ func main() {
 	}
 
 	svc := service.New(store, logger, el)
+
+if cfg.CloudHypervisor.SocketPath != "" {
+    vmmClient := vmm.New(vmm.Config{
+        Transport: vmm.TransportUnixSock,
+        Address:   cfg.CloudHypervisor.SocketPath,
+        Logger:    logger,
+        Metrics: mr,
+    })
+    svc.SetVMMClient(vmmClient)
+    logger.Info("VMM client configured", "socket", cfg.CloudHypervisor.SocketPath)
+}
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {

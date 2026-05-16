@@ -25,6 +25,7 @@ type CreateVMRequest struct {
 	CPUs    *CPURequest     `json:"cpus"`
 	Memory  *MemoryRequest  `json:"memory"`
 	Kernel  *KernelRequest  `json:"kernel"`
+        Payload *PayloadRequest `json:"payload"`
 	Disks   []DiskRequest   `json:"disks"`
 	Net     []NetRequest    `json:"net,omitempty"`
 	Console *ConsoleRequest `json:"console,omitempty"`
@@ -59,6 +60,13 @@ type NetRequest struct {
 	Tap string `json:"tap,omitempty"`
 	IP  string `json:"ip,omitempty"`
 	Mac string `json:"mac,omitempty"`
+}
+
+type PayloadRequest struct {
+    Firmware  string `json:"firmware"`
+    Kernel    string `json:"kernel"`
+    Cmdline   string `json:"cmdline"`
+    Initramfs string `json:"initramfs"`
 }
 
 // ConsoleRequest is the JSON request body for console.
@@ -107,13 +115,14 @@ func (req *CreateVMRequest) Validate() []problem.FieldError {
 		}
 	}
 
-	if req.Kernel == nil {
-		errs = append(errs, problem.Field("kernel", "kernel is required"))
-	} else {
-		if req.Kernel.Path == "" {
-			errs = append(errs, problem.Field("kernel.path", "path is required"))
-		}
-	}
+	if req.Kernel == nil && req.Payload == nil {
+    errs = append(errs, problem.Field("kernel", "kernel or payload is required"))
+} else if req.Kernel != nil && req.Kernel.Path == "" {
+    errs = append(errs, problem.Field("kernel.path", "path is required"))
+} else if req.Payload != nil && req.Payload.Firmware == "" && req.Payload.Kernel == "" {
+    errs = append(errs, problem.Field("payload", "firmware or kernel path is required"))
+}
+
 
 	if len(req.Disks) == 0 {
 		errs = append(errs, problem.Field("disks", "at least one disk is required"))
@@ -194,24 +203,37 @@ func (h *VMHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	svcReq := service.CreateVMRequest{
-		Name: req.Name,
-		Config: vmm.VmConfig{
-			CPUs: &vmm.CPUConfig{
-				BootVCPUs: req.CPUs.BootVCPUs,
-				MaxVCPUs:  req.CPUs.MaxVCPUs,
-			},
-			Memory: &vmm.MemoryConfig{
-				Size: req.Memory.Size,
-			},
-			Kernel: &vmm.KernelConfig{
-				Path: req.Kernel.Path,
-			},
-			Disks:   dtoToDisks(req.Disks),
-			Net:     dtoToNet(req.Net),
-			Console: dtoToConsole(req.Console),
-			Serial:  dtoToConsole(req.Serial),
-		},
-	}
+                Name: req.Name,
+                Config: vmm.VmConfig{
+                        CPUs: &vmm.CPUConfig{
+                                BootVCPUs: req.CPUs.BootVCPUs,
+                                MaxVCPUs:  req.CPUs.MaxVCPUs,
+                        },
+                        Memory: &vmm.MemoryConfig{
+                                Size: req.Memory.Size,
+                        },
+                  
+                        Disks:   dtoToDisks(req.Disks),
+                        Net:     dtoToNet(req.Net),
+                        Console: dtoToConsole(req.Console),
+                        Serial:  dtoToConsole(req.Serial),
+                },
+        }
+
+if req.Kernel != nil {
+    svcReq.Config.Kernel = &vmm.KernelConfig{
+        Path: req.Kernel.Path,
+    }
+}
+
+if req.Payload != nil {
+    svcReq.Config.Payload = &vmm.PayloadConfig{
+        Firmware:  req.Payload.Firmware,
+        Kernel:    req.Payload.Kernel,
+        Cmdline:   req.Payload.Cmdline,
+        Initramfs: req.Payload.Initramfs,
+    }
+}
 
 	vm, err := h.svc.CreateVM(r.Context(), svcReq)
 	if err != nil {
