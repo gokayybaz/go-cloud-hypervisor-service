@@ -17,6 +17,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/lifecycle"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/imagemanager"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/pprof"
@@ -102,7 +103,13 @@ func main() {
 		logger.Warn("NAT setup failed (may already be configured)", "err", err)
 	}
 
-	svc := service.New(store, logger, el, netMgr)
+	imageMgr := imagemanager.NewManager(
+		cfg.Images.BasePath,
+		cfg.Images.BaseImage,
+		cfg.Images.Kernel,
+	)
+
+	svc := service.New(store, logger, el, netMgr, imageMgr)
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {

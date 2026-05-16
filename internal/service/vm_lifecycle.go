@@ -18,6 +18,11 @@ import (
 // BootVM boots the VM identified by id.
 func (s *Service) BootVM(ctx context.Context, id, user string) error {
 	return s.transition(ctx, id, user, "boot", "running", func(ctx context.Context) error {
+		diskPath, err := s.imageMgr.CreateDisk(id)
+		if err != nil {
+			return fmt.Errorf("create disk: %w", err)
+		}
+
 		tapCfg, err := s.networkMgr.Allocate(id)
 		if err != nil {
 			return fmt.Errorf("allocate network: %w", err)
@@ -55,6 +60,10 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		vm, err := s.store.VMs.Get(id)
 		if err != nil {
 			return fmt.Errorf("get vm: %w", err)
+		}
+
+		vm.Config.Disks = []vmm.DiskConfig{
+			{Path: diskPath, Readonly: false},
 		}
 
 		vm.Config.Net = []vmm.NetConfig{
@@ -127,6 +136,7 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.TeardownTAP(tapCfg)
 			_ = s.networkMgr.Release(id)
 		}
+		_ = s.imageMgr.DeleteDisk(id)
 		return nil
 	})
 }

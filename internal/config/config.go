@@ -21,6 +21,7 @@ type Config struct {
 	RateLimit       RateLimitConfig       `mapstructure:"rate_limit"`
 	TLS             TLSConfig             `mapstructure:"tls"`
 	Network         NetworkConfig         `mapstructure:"network"`
+	Images          ImagesConfig          `mapstructure:"images"`
 	Profile         bool                  `mapstructure:"profile"`
 }
 
@@ -74,6 +75,13 @@ type RateLimitConfig struct {
 // NetworkConfig holds network settings.
 type NetworkConfig struct {
 	HostIface string `mapstructure:"host_iface"`
+}
+
+// ImagesConfig holds VM disk image settings.
+type ImagesConfig struct {
+	BasePath  string `mapstructure:"base_path"`
+	BaseImage string `mapstructure:"base_image"`
+	Kernel    string `mapstructure:"kernel"`
 }
 
 // TLSConfig holds TLS settings.
@@ -156,6 +164,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("tls.acme_cache", "data/certs")
 
 	v.SetDefault("network.host_iface", "eth0")
+
+	v.SetDefault("images.base_path", "/var/lib/ch-api/images")
+	v.SetDefault("images.base_image", "ubuntu.raw")
+	v.SetDefault("images.kernel", "bzImage")
 
 	v.SetDefault("profile", false)
 }

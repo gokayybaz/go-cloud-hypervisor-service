@@ -7,6 +7,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/imagemanager"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
 )
@@ -31,18 +32,20 @@ type Service struct {
 	vmmClients  map[string]vmmLifecycler
 	chProcesses map[string]*os.Process
 	networkMgr  *network.Manager
+	imageMgr    *imagemanager.Manager
 	eventlog    eventlog.Writer
 }
 
-// New creates a Service backed by the given store, logger, and network manager.
+// New creates a Service backed by the given store, logger, and managers.
 // The eventlog writer is optional and may be nil.
-func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *network.Manager) *Service {
+func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *network.Manager, imageMgr *imagemanager.Manager) *Service {
 	return &Service{
 		store:       s,
 		logger:      logger,
 		vmmClients:  make(map[string]vmmLifecycler),
 		chProcesses: make(map[string]*os.Process),
 		networkMgr:  networkMgr,
+		imageMgr:    imageMgr,
 		eventlog:    el,
 	}
 }
