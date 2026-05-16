@@ -6,6 +6,7 @@ import (
 
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/dhcp"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/imagemanager"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
@@ -35,12 +36,13 @@ type Service struct {
 	networkMgr  *network.Manager
 	imageMgr    *imagemanager.Manager
 	sshKeyMgr   *sshkey.Manager
+	dhcpMgr     *dhcp.Manager
 	eventlog    eventlog.Writer
 }
 
 // New creates a Service backed by the given store, logger, and managers.
 // The eventlog writer is optional and may be nil.
-func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *network.Manager, imageMgr *imagemanager.Manager, sshKeyMgr *sshkey.Manager) *Service {
+func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *network.Manager, imageMgr *imagemanager.Manager, sshKeyMgr *sshkey.Manager, dhcpMgr *dhcp.Manager) *Service {
 	return &Service{
 		store:       s,
 		logger:      logger,
@@ -49,6 +51,7 @@ func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *
 		networkMgr:  networkMgr,
 		imageMgr:    imageMgr,
 		sshKeyMgr:   sshKeyMgr,
+		dhcpMgr:     dhcpMgr,
 		eventlog:    el,
 	}
 }

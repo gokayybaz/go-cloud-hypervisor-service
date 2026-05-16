@@ -117,3 +117,17 @@ func (m *Manager) Get(vmID string) (*TAPConfig, bool) {
 	cfg, ok := m.allocations[vmID]
 	return cfg, ok
 }
+
+// AllowDHCP opens firewall ports for DHCP on a TAP interface.
+func (m *Manager) AllowDHCP(tapName string) error {
+	cmds := [][]string{
+		{"ufw", "allow", "in", "on", tapName, "to", "any", "port", "67", "proto", "udp"},
+		{"ufw", "allow", "in", "on", tapName, "to", "any", "port", "68", "proto", "udp"},
+	}
+	for _, args := range cmds {
+		if out, err := exec.Command(args[0], args[1:]...).CombinedOutput(); err != nil {
+			return fmt.Errorf("ufw allow dhcp: %w: %s", err, out)
+		}
+	}
+	return nil
+}

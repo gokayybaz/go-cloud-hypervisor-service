@@ -53,6 +53,18 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		if err := s.networkMgr.SetupTAP(tapCfg); err != nil {
 			return fmt.Errorf("setup tap: %w", err)
 		}
+		if err := s.networkMgr.AllowDHCP(tapCfg.TAPName); err != nil {
+			s.logger.Warn("ufw dhcp rule failed", "err", err)
+			// non-fatal, continue
+		}
+		if err := s.dhcpMgr.StartForVM(
+			id,
+			tapCfg.TAPName,
+			tapCfg.HostIP,
+			tapCfg.VMIP,
+		); err != nil {
+			return fmt.Errorf("start dhcp: %w", err)
+		}
 
 		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
 
@@ -157,6 +169,7 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		}
 		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
 		_ = os.Remove(socketPath)
+		s.dhcpMgr.StopForVM(id)
 		if tapCfg, ok := s.networkMgr.Get(id); ok {
 			_ = s.networkMgr.TeardownTAP(tapCfg)
 			_ = s.networkMgr.Release(id)

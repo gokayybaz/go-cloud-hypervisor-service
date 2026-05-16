@@ -17,6 +17,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/lifecycle"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/dhcp"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/imagemanager"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
@@ -112,7 +113,10 @@ func main() {
 
 	sshKeyMgr := sshkey.NewManager(cfg.Keys.BasePath)
 
-	svc := service.New(store, logger, el, netMgr, imageMgr, sshKeyMgr)
+	dhcpMgr := dhcp.NewManager(logger)
+	defer dhcpMgr.StopAll()
+
+	svc := service.New(store, logger, el, netMgr, imageMgr, sshKeyMgr, dhcpMgr)
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {
