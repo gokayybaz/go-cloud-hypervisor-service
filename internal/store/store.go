@@ -1,8 +1,8 @@
 package store
 
 import (
-	"github.com/org/ch-api/pkg/logging"
-	"github.com/org/ch-api/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
 )
 
 // Store is the persistence layer that holds VM state and operation logs.

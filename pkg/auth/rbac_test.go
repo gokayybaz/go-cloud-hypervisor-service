@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 func TestParseRole(t *testing.T) {

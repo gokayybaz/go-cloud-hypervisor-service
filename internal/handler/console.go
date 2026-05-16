@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"github.com/org/ch-api/internal/service"
-	"github.com/org/ch-api/pkg/api/problem"
-	"github.com/org/ch-api/pkg/logging"
-	"github.com/org/ch-api/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/service"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/api/problem"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
 )
 
 var upgrader = websocket.Upgrader{

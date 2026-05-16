@@ -9,10 +9,10 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://github.com/org/ch-api",
+        "termsOfService": "https://github.com/gokaybaz/go-cloud-hypervisor-service",
         "contact": {
             "name": "API Support",
-            "url": "https://github.com/org/ch-api/issues",
+            "url": "https://github.com/gokaybaz/go-cloud-hypervisor-service/issues",
             "email": "support@example.com"
         },
         "license": {

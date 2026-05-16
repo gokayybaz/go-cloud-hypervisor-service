@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 // TraceIDMiddleware injects a trace_id into the request context.  It first

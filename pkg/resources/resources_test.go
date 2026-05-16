@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 // ---------------------------------------------------------------------------

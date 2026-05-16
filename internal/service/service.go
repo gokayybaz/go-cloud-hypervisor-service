@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/org/ch-api/internal/store"
-	"github.com/org/ch-api/pkg/eventlog"
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 // vmmLifecycler is the subset of the VMM client used by lifecycle operations.

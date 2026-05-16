@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/org/ch-api/pkg/metrics"
-	"github.com/org/ch-api/pkg/vmm"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
 // VM represents a virtual machine managed by the API.

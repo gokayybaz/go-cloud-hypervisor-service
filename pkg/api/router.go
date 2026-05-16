@@ -9,11 +9,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/org/ch-api/pkg/audit"
-	"github.com/org/ch-api/pkg/auth"
-	"github.com/org/ch-api/pkg/logging"
-	"github.com/org/ch-api/pkg/metrics"
-	"github.com/org/ch-api/pkg/ratelimit"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/audit"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/auth"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/ratelimit"
 )
 
 // ---------------------------------------------------------------------------

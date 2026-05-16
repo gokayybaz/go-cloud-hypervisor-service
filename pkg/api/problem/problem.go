@@ -46,7 +46,7 @@ func (p *Detail) Write(w http.ResponseWriter) {
 // Constructors
 // ---------------------------------------------------------------------------
 
-const baseType = "https://github.com/org/ch-api/errors"
+const baseType = "https://github.com/gokaybaz/go-cloud-hypervisor-service/errors"
 
 // BadRequest returns a 400 Bad Request problem detail.
 func BadRequest(instance, detail string, errs ...FieldError) *Detail {

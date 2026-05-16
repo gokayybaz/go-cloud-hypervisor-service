@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/org/ch-api/pkg/vmm"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
 const (

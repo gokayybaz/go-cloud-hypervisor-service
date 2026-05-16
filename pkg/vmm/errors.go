@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 // ErrorCode classifies the kind of error returned by the VMM client.

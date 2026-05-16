@@ -12,7 +12,7 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 func TestNewCreatesDatabaseAndTable(t *testing.T) {

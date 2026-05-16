@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/org/ch-api/internal/service"
-	"github.com/org/ch-api/internal/store"
-	"github.com/org/ch-api/pkg/api/problem"
-	"github.com/org/ch-api/pkg/logging"
-	"github.com/org/ch-api/pkg/metrics"
-	"github.com/org/ch-api/pkg/vmm"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/service"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/api/problem"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
 // ---------------------------------------------------------------------------

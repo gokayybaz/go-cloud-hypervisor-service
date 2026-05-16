@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/org/ch-api/internal/service"
-	"github.com/org/ch-api/internal/store"
-	"github.com/org/ch-api/pkg/api"
-	"github.com/org/ch-api/pkg/vmm"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/service"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/api"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
 // ---------------------------------------------------------------------------

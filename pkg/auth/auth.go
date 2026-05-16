@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/org/ch-api/pkg/api/problem"
-	"github.com/org/ch-api/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/api/problem"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 )
 
 // ---------------------------------------------------------------------------

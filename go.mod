@@ -1,4 +1,4 @@
-module github.com/org/ch-api
+module github.com/gokaybaz/go-cloud-hypervisor-service
 
 go 1.25.0
 

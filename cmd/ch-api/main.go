@@ -6,32 +6,32 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/org/ch-api/docs"
-	"github.com/org/ch-api/internal/config"
-	"github.com/org/ch-api/internal/handler"
-	"github.com/org/ch-api/internal/service"
-	"github.com/org/ch-api/internal/store"
-	"github.com/org/ch-api/pkg/api"
-	"github.com/org/ch-api/pkg/audit"
-	"github.com/org/ch-api/pkg/auth"
-	"github.com/org/ch-api/pkg/eventlog"
-	"github.com/org/ch-api/pkg/lifecycle"
-	"github.com/org/ch-api/pkg/logging"
-	"github.com/org/ch-api/pkg/metrics"
-	"github.com/org/ch-api/pkg/pprof"
-	"github.com/org/ch-api/pkg/preflight"
-	"github.com/org/ch-api/pkg/ratelimit"
-	chtls "github.com/org/ch-api/pkg/tls"
+	_ "github.com/gokaybaz/go-cloud-hypervisor-service/docs"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/config"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/handler"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/service"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/api"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/audit"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/auth"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/lifecycle"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/pprof"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/preflight"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/ratelimit"
+	chtls "github.com/gokaybaz/go-cloud-hypervisor-service/pkg/tls"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 // @title           Cloud Hypervisor API
 // @version         1.0
 // @description     REST API for managing Cloud Hypervisor VMs.
-// @termsOfService  https://github.com/org/ch-api
+// @termsOfService  https://github.com/gokaybaz/go-cloud-hypervisor-service
 
 // @contact.name   API Support
-// @contact.url    https://github.com/org/ch-api/issues
+// @contact.url    https://github.com/gokaybaz/go-cloud-hypervisor-service/issues
 // @contact.email  support@example.com
 
 // @license.name  MIT

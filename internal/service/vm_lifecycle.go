@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/org/ch-api/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
 )
 
 // ---------------------------------------------------------------------------

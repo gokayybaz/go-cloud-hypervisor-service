@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/org/ch-api/internal/store"
-	"github.com/org/ch-api/pkg/eventlog"
-	"github.com/org/ch-api/pkg/vmm"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
 // CreateVMRequest is the business input for creating a VM.
