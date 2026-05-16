@@ -33,6 +33,11 @@ func (m *Manager) KernelPath() string {
 	return filepath.Join(m.basePath, m.kernel)
 }
 
+// BasePath returns the base path for images.
+func (m *Manager) BasePath() string {
+	return m.basePath
+}
+
 // CreateDisk copies the base image to a VM-specific path.
 func (m *Manager) CreateDisk(vmID string) (string, error) {
 	src := filepath.Join(m.basePath, m.baseImage)

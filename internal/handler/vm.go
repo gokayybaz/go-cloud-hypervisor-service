@@ -222,18 +222,21 @@ func (h *VMHandler) Create(w http.ResponseWriter, r *http.Request) {
         }
 
 if req.Kernel != nil {
-    svcReq.Config.Kernel = &vmm.KernelConfig{
-        Path: req.Kernel.Path,
-    }
+	if svcReq.Config.Payload == nil {
+		svcReq.Config.Payload = &vmm.PayloadConfig{}
+	}
+	svcReq.Config.Payload.Kernel = req.Kernel.Path
+	svcReq.Config.Payload.Cmdline = "console=hvc0 root=/dev/vda1 rw rootwait"
+	svcReq.Config.Kernel = nil
 }
 
 if req.Payload != nil {
-    svcReq.Config.Payload = &vmm.PayloadConfig{
-        Firmware:  req.Payload.Firmware,
-        Kernel:    req.Payload.Kernel,
-        Cmdline:   req.Payload.Cmdline,
-        Initramfs: req.Payload.Initramfs,
-    }
+	svcReq.Config.Payload = &vmm.PayloadConfig{
+		Firmware:  req.Payload.Firmware,
+		Kernel:    req.Payload.Kernel,
+		Cmdline:   req.Payload.Cmdline,
+		Initramfs: req.Payload.Initramfs,
+	}
 }
 
 	vm, err := h.svc.CreateVM(r.Context(), svcReq)

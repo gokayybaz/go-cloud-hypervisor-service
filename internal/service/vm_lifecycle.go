@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/cloudinit"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/vmm"
 )
 
@@ -18,6 +21,11 @@ import (
 // BootVM boots the VM identified by id.
 func (s *Service) BootVM(ctx context.Context, id, user string) error {
 	return s.transition(ctx, id, user, "boot", "running", func(ctx context.Context) error {
+		vm, err := s.store.VMs.Get(id)
+		if err != nil {
+			return fmt.Errorf("get vm: %w", err)
+		}
+
 		diskPath, err := s.imageMgr.CreateDisk(id)
 		if err != nil {
 			return fmt.Errorf("create disk: %w", err)
@@ -27,7 +35,16 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		if err != nil {
 			return fmt.Errorf("generate ssh key: %w", err)
 		}
-		_ = keyPair // will be used in cloud-init ISO generation
+
+		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
+		if err := cloudinit.Generate(cloudinit.Config{
+			InstanceID:   id,
+			Hostname:     vm.Name,
+			SSHPublicKey: strings.TrimSpace(keyPair.PublicKey),
+			OutputPath:   isoPath,
+		}); err != nil {
+			return fmt.Errorf("generate cloud-init iso: %w", err)
+		}
 
 		tapCfg, err := s.networkMgr.Allocate(id)
 		if err != nil {
@@ -63,14 +80,16 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		})
 		s.vmmClients[id] = client
 
-		vm, err := s.store.VMs.Get(id)
-		if err != nil {
-			return fmt.Errorf("get vm: %w", err)
-		}
-
 		vm.Config.Disks = []vmm.DiskConfig{
 			{Path: diskPath, Readonly: false},
+			{Path: isoPath, Readonly: true},
 		}
+
+		vm.Config.Payload = &vmm.PayloadConfig{
+			Kernel:  s.imageMgr.KernelPath(),
+			Cmdline: "console=hvc0 root=/dev/vda1 rw rootwait",
+		}
+		vm.Config.Kernel = nil
 
 		vm.Config.Net = []vmm.NetConfig{
 			{
@@ -144,6 +163,8 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		}
 		_ = s.imageMgr.DeleteDisk(id)
 		_ = s.sshKeyMgr.Delete(id)
+		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
+		_ = os.Remove(isoPath)
 		return nil
 	})
 }
