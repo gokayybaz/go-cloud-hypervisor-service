@@ -82,6 +82,14 @@ type VMResponse struct {
 	Status    string       `json:"status"`
 	CreatedAt string       `json:"created_at"`
 	Config    vmm.VmConfig `json:"config"`
+	Network   *NetworkInfo `json:"network,omitempty"`
+}
+
+// NetworkInfo holds per-VM network details.
+type NetworkInfo struct {
+	VMIP    string `json:"vm_ip"`
+	HostIP  string `json:"host_ip"`
+	TAPName string `json:"tap_name"`
 }
 
 // ---------------------------------------------------------------------------

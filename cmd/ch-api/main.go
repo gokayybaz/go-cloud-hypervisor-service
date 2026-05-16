@@ -116,7 +116,7 @@ func main() {
 	dhcpMgr := dhcp.NewManager(logger)
 	defer dhcpMgr.StopAll()
 
-	svc := service.New(store, logger, el, netMgr, imageMgr, sshKeyMgr, dhcpMgr)
+	svc := service.New(store, logger, el, imageMgr, sshKeyMgr, netMgr, dhcpMgr, mr)
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {

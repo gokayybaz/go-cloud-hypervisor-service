@@ -26,16 +26,20 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			return fmt.Errorf("get vm: %w", err)
 		}
 
+		// Step 1: Create VM disk from base image
 		diskPath, err := s.imageMgr.CreateDisk(id)
 		if err != nil {
 			return fmt.Errorf("create disk: %w", err)
 		}
 
+		// Step 2: Generate SSH keypair
 		keyPair, err := s.sshKeyMgr.Generate(id)
 		if err != nil {
+			_ = s.imageMgr.DeleteDisk(id)
 			return fmt.Errorf("generate ssh key: %w", err)
 		}
 
+		// Step 3: Generate cloud-init ISO
 		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
 		if err := cloudinit.Generate(cloudinit.Config{
 			InstanceID:   id,
@@ -43,88 +47,143 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			SSHPublicKey: strings.TrimSpace(keyPair.PublicKey),
 			OutputPath:   isoPath,
 		}); err != nil {
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
 			return fmt.Errorf("generate cloud-init iso: %w", err)
 		}
 
+		// Step 4: Allocate and setup TAP network
 		tapCfg, err := s.networkMgr.Allocate(id)
 		if err != nil {
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
 			return fmt.Errorf("allocate network: %w", err)
 		}
 		if err := s.networkMgr.SetupTAP(tapCfg); err != nil {
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
 			return fmt.Errorf("setup tap: %w", err)
 		}
+
+		// Step 5: Allow DHCP through firewall
 		if err := s.networkMgr.AllowDHCP(tapCfg.TAPName); err != nil {
-			s.logger.Warn("ufw dhcp rule failed", "err", err)
-			// non-fatal, continue
+			s.logger.Warn("ufw dhcp rule failed, continuing", "err", err)
 		}
-		if err := s.dhcpMgr.StartForVM(
-			id,
-			tapCfg.TAPName,
-			tapCfg.HostIP,
-			tapCfg.VMIP,
-		); err != nil {
+
+		// Step 6: Start DHCP server for this VM
+		if err := s.dhcpMgr.StartForVM(id, tapCfg.TAPName, tapCfg.HostIP, tapCfg.VMIP); err != nil {
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
 			return fmt.Errorf("start dhcp: %w", err)
 		}
 
+		// Step 7: Start Cloud Hypervisor process
 		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
+		serialSocket := fmt.Sprintf("/var/run/ch-api/%s-serial.sock", id)
 
 		cmd := exec.Command("cloud-hypervisor", "--api-socket", socketPath)
 		if err := cmd.Start(); err != nil {
+			s.dhcpMgr.StopForVM(id)
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
 			return fmt.Errorf("start cloud-hypervisor: %w", err)
 		}
 		s.chProcesses[id] = cmd.Process
 
-		// Wait for socket to appear (max 3 seconds)
-		for i := 0; i < 10; i++ {
+		// Step 8: Wait for socket
+		for i := 0; i < 20; i++ {
 			if _, err := os.Stat(socketPath); err == nil {
 				break
 			}
-			if i == 9 {
+			if i == 19 {
+				_ = cmd.Process.Kill()
+				s.dhcpMgr.StopForVM(id)
+				_ = s.networkMgr.TeardownTAP(tapCfg)
+				_ = s.networkMgr.Release(id)
+				_ = s.imageMgr.DeleteDisk(id)
+				_ = s.sshKeyMgr.Delete(id)
+				_ = os.Remove(isoPath)
 				return fmt.Errorf("timeout waiting for socket %s", socketPath)
 			}
 			time.Sleep(300 * time.Millisecond)
 		}
 
+		// Step 9: Create VMM client and store it
 		client := vmm.New(vmm.Config{
 			Transport: vmm.TransportUnixSock,
 			Address:   socketPath,
 			Logger:    s.logger,
+			Metrics:   s.metrics,
 		})
 		s.vmmClients[id] = client
 
-		vm.Config.Disks = []vmm.DiskConfig{
-			{Path: diskPath, Readonly: false},
-			{Path: isoPath, Readonly: true},
-		}
-
-		vm.Config.Payload = &vmm.PayloadConfig{
-			Kernel:  s.imageMgr.KernelPath(),
-			Cmdline: "console=hvc0 root=/dev/vda1 rw rootwait",
-		}
-		vm.Config.Kernel = nil
-
-		vm.Config.Net = []vmm.NetConfig{
-			{
-				Tap:  tapCfg.TAPName,
-				IP:   tapCfg.VMIP,
-				Mask: "255.255.255.252",
+		// Step 10: Build VM config and send to CH
+		chConfig := &vmm.VmConfig{
+			CPUs:   vm.Config.CPUs,
+			Memory: vm.Config.Memory,
+			Payload: &vmm.PayloadConfig{
+				Kernel:  s.imageMgr.KernelPath(),
+				Cmdline: "console=hvc0 root=/dev/vda1 rw rootwait",
+			},
+			Disks: []vmm.DiskConfig{
+				{Path: diskPath, Readonly: false},
+				{Path: isoPath, Readonly: true},
+			},
+			Net: []vmm.NetConfig{
+				{
+					Tap:  tapCfg.TAPName,
+					IP:   tapCfg.VMIP,
+					Mask: "255.255.255.252",
+				},
+			},
+			Serial: &vmm.ConsoleConfig{
+				Mode:   "Socket",
+				Socket: serialSocket,
+			},
+			Console: &vmm.ConsoleConfig{
+				Mode: "Off",
 			},
 		}
 
-		serialSocket := fmt.Sprintf("/var/run/ch-api/%s-serial.sock", id)
-		vm.Config.Serial = &vmm.ConsoleConfig{
-			Mode:   "Socket",
-			Socket: serialSocket,
-		}
-		vm.Config.Console = &vmm.ConsoleConfig{
-			Mode: "Off",
-		}
-
-		if err := client.Create(ctx, &vm.Config); err != nil {
+		if err := client.Create(ctx, chConfig); err != nil {
+			_ = cmd.Process.Kill()
+			s.dhcpMgr.StopForVM(id)
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
 			return fmt.Errorf("create vm in vmm: %w", err)
 		}
 
-		return client.Boot(ctx)
+		// Step 11: Boot the VM
+		if err := client.Boot(ctx); err != nil {
+			_ = cmd.Process.Kill()
+			s.dhcpMgr.StopForVM(id)
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			_ = os.Remove(isoPath)
+			return fmt.Errorf("boot vm: %w", err)
+		}
+
+		s.logger.Info("vm fully provisioned",
+			"id", id,
+			"tap", tapCfg.TAPName,
+			"vm_ip", tapCfg.VMIP,
+			"host_ip", tapCfg.HostIP,
+		)
+		return nil
 	})
 }
 
@@ -160,6 +219,8 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		if err := client.Shutdown(ctx); err != nil {
 			return err
 		}
+
+		// Cleanup after shutdown
 		if proc, ok := s.chProcesses[id]; ok {
 			_ = proc.Kill()
 			delete(s.chProcesses, id)
@@ -167,17 +228,30 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		if _, ok := s.vmmClients[id]; ok {
 			delete(s.vmmClients, id)
 		}
-		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
-		_ = os.Remove(socketPath)
+
+		// Stop DHCP
 		s.dhcpMgr.StopForVM(id)
+
+		// Teardown network
 		if tapCfg, ok := s.networkMgr.Get(id); ok {
 			_ = s.networkMgr.TeardownTAP(tapCfg)
 			_ = s.networkMgr.Release(id)
 		}
+
+		// Remove socket files
+		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
+		serialSocket := fmt.Sprintf("/var/run/ch-api/%s-serial.sock", id)
+		_ = os.Remove(socketPath)
+		_ = os.Remove(serialSocket)
+
+		// Remove disk and ISO
 		_ = s.imageMgr.DeleteDisk(id)
-		_ = s.sshKeyMgr.Delete(id)
 		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
 		_ = os.Remove(isoPath)
+
+		// Remove SSH keys
+		_ = s.sshKeyMgr.Delete(id)
+
 		return nil
 	})
 }
