@@ -65,6 +65,15 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			},
 		}
 
+		serialSocket := fmt.Sprintf("/var/run/ch-api/%s-serial.sock", id)
+		vm.Config.Serial = &vmm.ConsoleConfig{
+			Mode:   "Socket",
+			Socket: serialSocket,
+		}
+		vm.Config.Console = &vmm.ConsoleConfig{
+			Mode: "Off",
+		}
+
 		if err := client.Create(ctx, &vm.Config); err != nil {
 			return fmt.Errorf("create vm in vmm: %w", err)
 		}

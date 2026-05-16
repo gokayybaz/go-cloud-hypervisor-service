@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -56,6 +56,7 @@ func (h *ConsoleHandler) Register(r chi.Router) {
 // @Param        id   path  string  true  "VM ID"
 // @Success      101  "WebSocket upgrade"
 // @Failure      404  {object}  problem.Detail  "VM not found"
+// @Failure      503  {object}  problem.Detail  "Console unavailable"
 // @Router       /api/v1/vms/{id}/console [get]
 func (h *ConsoleHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	vmID := chi.URLParam(r, "id")
@@ -70,6 +71,16 @@ func (h *ConsoleHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	serialPath := fmt.Sprintf("/var/run/ch-api/%s-serial.sock", vmID)
+	serialConn, err := net.Dial("unix", serialPath)
+	if err != nil {
+		log.Warn("serial socket unavailable", "path", serialPath, "err", err)
+		h.recordError("console_unavailable")
+		http.Error(w, "console unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer serialConn.Close()
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error("websocket upgrade failed", "err", err)
@@ -81,47 +92,38 @@ func (h *ConsoleHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	clientAddr := r.RemoteAddr
 	log.Info("console session started", "vm_id", vmID, "client", clientAddr)
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	// Watch for client disconnect.
+	// Copy serial -> websocket in a background goroutine.
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		buf := make([]byte, 4096)
 		for {
-			_, _, err := conn.ReadMessage()
+			n, err := serialConn.Read(buf)
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Warn("websocket read error", "err", err)
-				}
-				cancel()
+				return
+			}
+			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
 				return
 			}
 		}
 	}()
 
-	// Stream simulated console output.
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	msgCount := 0
+	// Copy websocket -> serial in the main goroutine.
 	for {
-		select {
-		case <-ctx.Done():
-			goto cleanup
-		case <-done:
-			goto cleanup
-		case <-ticker.C:
-			msgCount++
-			line := fmt.Sprintf("[%s] vm=%s console line %d\n", time.Now().Format(time.RFC3339), vmID, msgCount)
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
-				log.Warn("websocket write error", "err", err)
-				goto cleanup
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Warn("websocket read error", "err", err)
 			}
+			break
+		}
+		if _, err := serialConn.Write(data); err != nil {
+			log.Warn("serial write error", "err", err)
+			break
 		}
 	}
 
-cleanup:
+	<-done
 	duration := time.Since(start)
-	log.Info("console session ended", "vm_id", vmID, "client", clientAddr, "duration_ms", duration.Milliseconds(), "lines_sent", msgCount)
+	log.Info("console session ended", "vm_id", vmID, "client", clientAddr, "duration_ms", duration.Milliseconds())
 }

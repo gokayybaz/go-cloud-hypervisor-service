@@ -96,8 +96,10 @@ type NetConfig struct {
 
 // ConsoleConfig describes a serial or virtio-console device.
 type ConsoleConfig struct {
-	Mode string `json:"mode,omitempty"` // "Off", "Tty", "File", "Socket"
-	Path string `json:"path,omitempty"`
+	Mode   string `json:"mode,omitempty"` // "Off", "Tty", "File", "Socket"
+	Path   string `json:"path,omitempty"`
+	Socket string `json:"socket,omitempty"`
+	Iommu  bool   `json:"iommu,omitempty"`
 }
 
 // PayloadConfig describes the firmware payload.
