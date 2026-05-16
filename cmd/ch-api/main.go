@@ -18,6 +18,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/lifecycle"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/metrics"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/pprof"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/preflight"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/ratelimit"
@@ -106,7 +107,12 @@ func main() {
 		defer el.Close()
 	}
 
-	svc := service.New(store, logger, el)
+	netMgr := network.NewManager(cfg.Network.HostIface)
+	if err := netMgr.SetupNAT(cfg.Network.HostIface); err != nil {
+		logger.Warn("NAT setup failed (may already be configured)", "err", err)
+	}
+
+	svc := service.New(store, logger, el, netMgr)
 
 	auditor, err := audit.New("data/audit")
 	if err != nil {

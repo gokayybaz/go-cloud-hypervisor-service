@@ -8,6 +8,7 @@ import (
 	"github.com/gokaybaz/go-cloud-hypervisor-service/internal/store"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/eventlog"
 	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/logging"
+	"github.com/gokaybaz/go-cloud-hypervisor-service/pkg/network"
 )
 
 // vmmLifecycler is the subset of the VMM client used by lifecycle operations.
@@ -29,17 +30,19 @@ type Service struct {
 	logger      logging.Logger
 	vmmClients  map[string]vmmLifecycler
 	chProcesses map[string]*os.Process
+	networkMgr  *network.Manager
 	eventlog    eventlog.Writer
 }
 
-// New creates a Service backed by the given store and logger.
+// New creates a Service backed by the given store, logger, and network manager.
 // The eventlog writer is optional and may be nil.
-func New(s *store.Store, logger logging.Logger, el eventlog.Writer) *Service {
+func New(s *store.Store, logger logging.Logger, el eventlog.Writer, networkMgr *network.Manager) *Service {
 	return &Service{
 		store:       s,
 		logger:      logger,
 		vmmClients:  make(map[string]vmmLifecycler),
 		chProcesses: make(map[string]*os.Process),
+		networkMgr:  networkMgr,
 		eventlog:    el,
 	}
 }

@@ -20,6 +20,7 @@ type Config struct {
 	Auth            AuthConfig            `mapstructure:"auth"`
 	RateLimit       RateLimitConfig       `mapstructure:"rate_limit"`
 	TLS             TLSConfig             `mapstructure:"tls"`
+	Network         NetworkConfig         `mapstructure:"network"`
 	Profile         bool                  `mapstructure:"profile"`
 }
 
@@ -68,6 +69,11 @@ type RateLimitConfig struct {
 	ViewerLimit   int           `mapstructure:"viewer_limit"`
 	OperatorLimit int           `mapstructure:"operator_limit"`
 	AdminLimit    int           `mapstructure:"admin_limit"`
+}
+
+// NetworkConfig holds network settings.
+type NetworkConfig struct {
+	HostIface string `mapstructure:"host_iface"`
 }
 
 // TLSConfig holds TLS settings.
@@ -148,6 +154,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("tls.acme_email", "")
 	v.SetDefault("tls.acme_domains", []string{})
 	v.SetDefault("tls.acme_cache", "data/certs")
+
+	v.SetDefault("network.host_iface", "eth0")
 
 	v.SetDefault("profile", false)
 }

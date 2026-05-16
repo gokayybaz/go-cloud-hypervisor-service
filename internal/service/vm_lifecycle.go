@@ -18,6 +18,14 @@ import (
 // BootVM boots the VM identified by id.
 func (s *Service) BootVM(ctx context.Context, id, user string) error {
 	return s.transition(ctx, id, user, "boot", "running", func(ctx context.Context) error {
+		tapCfg, err := s.networkMgr.Allocate(id)
+		if err != nil {
+			return fmt.Errorf("allocate network: %w", err)
+		}
+		if err := s.networkMgr.SetupTAP(tapCfg); err != nil {
+			return fmt.Errorf("setup tap: %w", err)
+		}
+
 		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
 
 		cmd := exec.Command("cloud-hypervisor", "--api-socket", socketPath)
@@ -47,6 +55,14 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 		vm, err := s.store.VMs.Get(id)
 		if err != nil {
 			return fmt.Errorf("get vm: %w", err)
+		}
+
+		vm.Config.Net = []vmm.NetConfig{
+			{
+				Tap:  tapCfg.TAPName,
+				IP:   tapCfg.VMIP,
+				Mask: "255.255.255.252",
+			},
 		}
 
 		if err := client.Create(ctx, &vm.Config); err != nil {
@@ -98,6 +114,10 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		}
 		socketPath := fmt.Sprintf("/var/run/ch-api/%s.sock", id)
 		_ = os.Remove(socketPath)
+		if tapCfg, ok := s.networkMgr.Get(id); ok {
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+		}
 		return nil
 	})
 }
