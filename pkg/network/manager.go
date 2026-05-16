@@ -29,17 +29,10 @@ func (m *Manager) Allocate(vmID string) (*TAPConfig, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	shortID := strings.ReplaceAll(vmID, "-", "")
-	if len(shortID) > 8 {
-		shortID = shortID[:8]
-	}
-	tapName := "tap-" + shortID
-	if len(tapName) > 15 {
-		tapName = tapName[:15]
-	}
-
 	idx := m.nextIndex
 	m.nextIndex++
+
+	tapName := fmt.Sprintf("tap-%d", idx)
 
 	hostIP := fmt.Sprintf("10.100.%d.1", idx)
 	vmIP := fmt.Sprintf("10.100.%d.2", idx)

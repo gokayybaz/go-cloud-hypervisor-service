@@ -77,16 +77,6 @@ func main() {
 		}
 	}
 
-	// Verify VMM Unix socket ownership and permissions.
-	if cfg.CloudHypervisor.SocketPath != "" {
-		res := preflight.CheckSocket(cfg.CloudHypervisor.SocketPath)
-		if !res.OK {
-			logger.Error("VMM socket permission check failed", "message", res.Message)
-			os.Exit(1)
-		}
-		logger.Info("VMM socket permission check passed", "message", res.Message)
-	}
-
 	mr := metrics.New()
 
 	store := store.New(logger, mr)
