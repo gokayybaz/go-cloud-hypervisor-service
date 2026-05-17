@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Manager handles VM disk image creation and cleanup.
@@ -75,16 +76,30 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	}
 	defer os.RemoveAll(mountPoint)
 
-	// Ubuntu 22.04 cloud image: partition 1 starts at sector 227328
-	// offset = 227328 * 512 = 116391936 bytes
 	const partitionOffset = 227328 * 512
 
-	// Mount the partition directly using offset
-	mountCmd := exec.Command("mount",
-		"-o", fmt.Sprintf("loop,offset=%d", partitionOffset),
-		diskPath, mountPoint)
-	if out, err := mountCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("mount: %w: %s", err, out)
+	// Check if a loop device already exists for this disk
+	out, err := exec.Command("losetup", "-j", diskPath).Output()
+
+	var mountDevice string
+	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+		// Use existing loop device: extract /dev/loopN from output
+		// Output format: "/dev/loop1: [1792]:13 (/path/to/disk)"
+		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
+		mountDevice = strings.TrimSpace(parts[0])
+		// Mount using existing loop device with offset
+		if out, err := exec.Command("mount", "-o",
+			fmt.Sprintf("offset=%d", partitionOffset),
+			mountDevice, mountPoint).CombinedOutput(); err != nil {
+			return fmt.Errorf("mount existing loop: %w: %s", err, out)
+		}
+	} else {
+		// No existing loop device, mount directly with loop option
+		if out, err := exec.Command("mount", "-o",
+			fmt.Sprintf("loop,offset=%d", partitionOffset),
+			diskPath, mountPoint).CombinedOutput(); err != nil {
+			return fmt.Errorf("mount: %w: %s", err, out)
+		}
 	}
 	defer exec.Command("umount", mountPoint).Run()
 
@@ -96,17 +111,14 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 
 	// Write seed files
 	for name, content := range files {
-		path := filepath.Join(seedDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(seedDir, name), []byte(content), 0644); err != nil {
 			return fmt.Errorf("write %s: %w", name, err)
 		}
 	}
 
-	// Reset cloud-init instance state so it runs fresh
-	instanceDir := filepath.Join(mountPoint, "var", "lib", "cloud", "instances")
-	_ = os.RemoveAll(instanceDir)
-	instanceLink := filepath.Join(mountPoint, "var", "lib", "cloud", "instance")
-	_ = os.Remove(instanceLink)
+	// Reset cloud-init instance state
+	_ = os.RemoveAll(filepath.Join(mountPoint, "var", "lib", "cloud", "instances"))
+	_ = os.Remove(filepath.Join(mountPoint, "var", "lib", "cloud", "instance"))
 
 	return nil
 }
