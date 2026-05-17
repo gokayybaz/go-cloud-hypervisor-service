@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 // Manager handles VM disk image creation and cleanup.
@@ -77,35 +75,15 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	}
 	defer os.RemoveAll(mountPoint)
 
-	// Setup loop device
-	cmd := exec.Command("losetup", "-f", "--show", "--partscan", diskPath)
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("losetup: %w: %s", err, string(exitErr.Stderr))
-		}
-		return fmt.Errorf("losetup: %w", err)
-	}
-	loopDev := strings.TrimSpace(string(out)) // e.g. /dev/loop3
-	loopName := filepath.Base(loopDev)        // e.g. loop3
+	// Ubuntu 22.04 cloud image: partition 1 starts at sector 227328
+	// offset = 227328 * 512 = 116391936 bytes
+	const partitionOffset = 227328 * 512
 
-	defer exec.Command("losetup", "-d", loopDev).Run()
-
-	// Get partition 1 start sector
-	startPath := fmt.Sprintf("/sys/block/%s/%sp1/start", loopName, loopName)
-	startBytes, err := os.ReadFile(startPath)
-	if err != nil {
-		return fmt.Errorf("read partition start: %w", err)
-	}
-	startSector, err := strconv.ParseInt(strings.TrimSpace(string(startBytes)), 10, 64)
-	if err != nil {
-		return fmt.Errorf("parse start sector: %w", err)
-	}
-	offset := startSector * 512
-
-	// Mount partition
-	if out, err := exec.Command("mount", "-o",
-		fmt.Sprintf("loop,offset=%d", offset), diskPath, mountPoint).CombinedOutput(); err != nil {
+	// Mount the partition directly using offset
+	mountCmd := exec.Command("mount",
+		"-o", fmt.Sprintf("loop,offset=%d", partitionOffset),
+		diskPath, mountPoint)
+	if out, err := mountCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("mount: %w: %s", err, out)
 	}
 	defer exec.Command("umount", mountPoint).Run()
@@ -126,10 +104,7 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 
 	// Reset cloud-init instance state so it runs fresh
 	instanceDir := filepath.Join(mountPoint, "var", "lib", "cloud", "instances")
-	if err := os.RemoveAll(instanceDir); err != nil {
-		return fmt.Errorf("remove cloud instances: %w", err)
-	}
-	// Also remove the per-instance symlink
+	_ = os.RemoveAll(instanceDir)
 	instanceLink := filepath.Join(mountPoint, "var", "lib", "cloud", "instance")
 	_ = os.Remove(instanceLink)
 
