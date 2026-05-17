@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 // Manager handles VM disk image creation and cleanup.
@@ -81,13 +82,19 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 		}
 	}
 
-	// Call the helper script
-	out, err := exec.Command("/usr/local/bin/ch-seed-inject", diskPath, seedDir).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("ch-seed-inject: %w: %s", err, out)
+	// Retry up to 5 times with 2s delay to wait for disk to be fully written
+	var lastErr error
+	for i := 0; i < 5; i++ {
+		if i > 0 {
+			time.Sleep(2 * time.Second)
+		}
+		out, err := exec.Command("/usr/local/bin/ch-seed-inject", diskPath, seedDir).CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		lastErr = fmt.Errorf("ch-seed-inject: %w: %s", err, out)
 	}
-
-	return nil
+	return lastErr
 }
 
 func copyFile(src, dst string) error {
