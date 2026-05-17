@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // Manager handles VM disk image creation and cleanup.
@@ -65,84 +64,30 @@ func (m *Manager) DeleteDisk(vmID string) error {
 }
 
 // InjectCloudInitSeed writes cloud-init seed files directly into the VM disk
-// using debugfs, which does not require mounting or loop devices.
+// using the ch-seed-inject helper script.
 func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) error {
 	diskPath := m.VMDiskPath(vmID)
 
-	// Find the loop device for this disk (e.g. /dev/loop1p1)
-	// First check if a loop device exists for ubuntu.raw (the base image);
-	// the VM disk is a copy so it has the same partition layout.
-	// We use the VM disk path directly with debugfs partition offset.
-	// Ubuntu 22.04 cloud image: partition 1 is at sector 227328.
-	// debugfs accepts the disk image directly with -o srcdev for partition.
-	// Since debugfs doesn't support offset, we find the loop device for the disk.
-
-	// Find partition device - use any available loop device backed by a .raw file
-	partDev, err := m.findPartitionDevice(diskPath)
+	// Write seed files to a temp directory
+	seedDir, err := os.MkdirTemp("", "cloudinit-seed-*")
 	if err != nil {
-		return fmt.Errorf("find loop device: %w", err)
+		return fmt.Errorf("create seed dir: %w", err)
 	}
+	defer os.RemoveAll(seedDir)
 
-	// Ensure seed directory exists
-	mkdirCmds := []string{
-		"mkdir /var/lib/cloud",
-		"mkdir /var/lib/cloud/seed",
-		"mkdir /var/lib/cloud/seed/nocloud",
-	}
-
-	for _, cmd := range mkdirCmds {
-		// Ignore errors - directories may already exist
-		exec.Command("debugfs", "-w", partDev, "-R", cmd).Run()
-	}
-
-	// Write each seed file
 	for name, content := range files {
-		// Write content to a temp file first
-		tmpFile, err := os.CreateTemp("", "cloudinit-*")
-		if err != nil {
-			return fmt.Errorf("create temp file: %w", err)
+		if err := os.WriteFile(filepath.Join(seedDir, name), []byte(content), 0644); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
 		}
-		if _, err := tmpFile.WriteString(content); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-			return fmt.Errorf("write temp file: %w", err)
-		}
-		tmpFile.Close()
-
-		destPath := "/var/lib/cloud/seed/nocloud/" + name
-		writeCmd := fmt.Sprintf("write %s %s", tmpFile.Name(), destPath)
-		if out, err := exec.Command("debugfs", "-w", partDev, "-R", writeCmd).CombinedOutput(); err != nil {
-			os.Remove(tmpFile.Name())
-			return fmt.Errorf("debugfs write %s: %w: %s", name, err, out)
-		}
-		os.Remove(tmpFile.Name())
 	}
 
-	// Reset cloud-init instance state
-	exec.Command("debugfs", "-w", partDev, "-R", "rm /var/lib/cloud/instance").Run()
-	exec.Command("debugfs", "-w", partDev, "-R", "rm_rf /var/lib/cloud/instances").Run()
+	// Call the helper script with sudo
+	out, err := exec.Command("sudo", "/usr/local/bin/ch-seed-inject", diskPath, seedDir).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("ch-seed-inject: %w: %s", err, out)
+	}
 
 	return nil
-}
-
-// findPartitionDevice finds an existing loop device backed by any .raw image
-// and returns its partition device path (e.g. /dev/loop1p1).
-func (m *Manager) findPartitionDevice(diskPath string) (string, error) {
-	// Check for loop device backed by any .raw image (all share same partition layout)
-	out, err := exec.Command("losetup", "-l", "--noheadings", "-O", "NAME,BACK-FILE").Output()
-	if err != nil {
-		return "", fmt.Errorf("losetup list: %w", err)
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && strings.HasSuffix(fields[1], ".raw") {
-			partDev := fields[0] + "p1"
-			if _, err := os.Stat(partDev); err == nil {
-				return partDev, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("no loop device found; ensure base image is attached: losetup -f --show --partscan %s", filepath.Join(filepath.Dir(diskPath), "ubuntu.raw"))
 }
 
 func copyFile(src, dst string) error {
