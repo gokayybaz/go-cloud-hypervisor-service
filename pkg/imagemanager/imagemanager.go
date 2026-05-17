@@ -77,12 +77,11 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	// debugfs accepts the disk image directly with -o srcdev for partition.
 	// Since debugfs doesn't support offset, we find the loop device for the disk.
 
-	// Get the loop device for this VM disk
-	loopDev, err := m.findOrCreateLoopDevice(diskPath)
+	// Find partition device - use any available loop device backed by a .raw file
+	partDev, err := m.findPartitionDevice(diskPath)
 	if err != nil {
 		return fmt.Errorf("find loop device: %w", err)
 	}
-	partDev := loopDev + "p1"
 
 	// Ensure seed directory exists
 	mkdirCmds := []string{
@@ -126,26 +125,24 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	return nil
 }
 
-// findOrCreateLoopDevice finds an existing loop device for the disk,
-// or creates a new one using losetup.
-func (m *Manager) findOrCreateLoopDevice(diskPath string) (string, error) {
-	// Check for existing loop device
-	out, err := exec.Command("losetup", "-j", diskPath).Output()
-	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
-		// Parse: "/dev/loop1: [1792]:13 (/path)"
-		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
-		return strings.TrimSpace(parts[0]), nil
-	}
-
-	// Create new loop device
-	out, err = exec.Command("losetup", "-f", "--show", "--partscan", diskPath).Output()
+// findPartitionDevice finds an existing loop device backed by any .raw image
+// and returns its partition device path (e.g. /dev/loop1p1).
+func (m *Manager) findPartitionDevice(diskPath string) (string, error) {
+	// Check for loop device backed by any .raw image (all share same partition layout)
+	out, err := exec.Command("losetup", "-l", "--noheadings", "-O", "NAME,BACK-FILE").Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("losetup: %w: %s", err, string(exitErr.Stderr))
-		}
-		return "", fmt.Errorf("losetup: %w", err)
+		return "", fmt.Errorf("losetup list: %w", err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && strings.HasSuffix(fields[1], ".raw") {
+			partDev := fields[0] + "p1"
+			if _, err := os.Stat(partDev); err == nil {
+				return partDev, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no loop device found; ensure base image is attached: losetup -f --show --partscan %s", filepath.Join(filepath.Dir(diskPath), "ubuntu.raw"))
 }
 
 func copyFile(src, dst string) error {
