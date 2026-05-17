@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -39,33 +38,35 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			return fmt.Errorf("generate ssh key: %w", err)
 		}
 
-		// Step 3: Generate cloud-init ISO
-		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
-		if err := cloudinit.Generate(cloudinit.Config{
-			InstanceID:   id,
-			Hostname:     vm.Name,
-			SSHPublicKey: strings.TrimSpace(keyPair.PublicKey),
-			OutputPath:   isoPath,
-		}); err != nil {
-			_ = s.imageMgr.DeleteDisk(id)
-			_ = s.sshKeyMgr.Delete(id)
-			return fmt.Errorf("generate cloud-init iso: %w", err)
-		}
-
-		// Step 4: Allocate and setup TAP network
+		// Step 3: Allocate and setup TAP network
 		tapCfg, err := s.networkMgr.Allocate(id)
 		if err != nil {
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("allocate network: %w", err)
 		}
 		if err := s.networkMgr.SetupTAP(tapCfg); err != nil {
 			_ = s.networkMgr.Release(id)
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("setup tap: %w", err)
+		}
+
+		// Step 4: Inject cloud-init seed files directly into VM disk
+		seedFiles := cloudinit.BuildSeedFiles(cloudinit.Config{
+			InstanceID:   id,
+			Hostname:     vm.Name,
+			SSHPublicKey: strings.TrimSpace(keyPair.PublicKey),
+			MAC:          tapCfg.MAC,
+			VMIP:         tapCfg.VMIP,
+			Gateway:      tapCfg.HostIP,
+		})
+		if err := s.imageMgr.InjectCloudInitSeed(id, seedFiles); err != nil {
+			_ = s.networkMgr.TeardownTAP(tapCfg)
+			_ = s.networkMgr.Release(id)
+			_ = s.imageMgr.DeleteDisk(id)
+			_ = s.sshKeyMgr.Delete(id)
+			return fmt.Errorf("inject cloud-init seed: %w", err)
 		}
 
 		// Step 5: Allow DHCP through firewall
@@ -79,7 +80,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.Release(id)
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("start dhcp: %w", err)
 		}
 
@@ -94,7 +94,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.Release(id)
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("start cloud-hypervisor: %w", err)
 		}
 		s.chProcesses[id] = cmd.Process
@@ -111,7 +110,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 				_ = s.networkMgr.Release(id)
 				_ = s.imageMgr.DeleteDisk(id)
 				_ = s.sshKeyMgr.Delete(id)
-				_ = os.Remove(isoPath)
 				return fmt.Errorf("timeout waiting for socket %s", socketPath)
 			}
 			time.Sleep(300 * time.Millisecond)
@@ -136,7 +134,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			},
 			Disks: []vmm.DiskConfig{
 				{Path: diskPath, Readonly: false},
-				{Path: isoPath, Readonly: true},
 			},
 			Net: []vmm.NetConfig{
 				{
@@ -161,7 +158,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.Release(id)
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("create vm in vmm: %w", err)
 		}
 
@@ -173,7 +169,6 @@ func (s *Service) BootVM(ctx context.Context, id, user string) error {
 			_ = s.networkMgr.Release(id)
 			_ = s.imageMgr.DeleteDisk(id)
 			_ = s.sshKeyMgr.Delete(id)
-			_ = os.Remove(isoPath)
 			return fmt.Errorf("boot vm: %w", err)
 		}
 
@@ -244,10 +239,8 @@ func (s *Service) ShutdownVM(ctx context.Context, id, user string) error {
 		_ = os.Remove(socketPath)
 		_ = os.Remove(serialSocket)
 
-		// Remove disk and ISO
+		// Remove disk
 		_ = s.imageMgr.DeleteDisk(id)
-		isoPath := filepath.Join(s.imageMgr.BasePath(), id+"-cidata.iso")
-		_ = os.Remove(isoPath)
 
 		// Remove SSH keys
 		_ = s.sshKeyMgr.Delete(id)

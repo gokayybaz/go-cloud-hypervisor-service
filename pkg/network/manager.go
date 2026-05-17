@@ -1,6 +1,7 @@
 package network
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -47,6 +48,7 @@ func (m *Manager) Allocate(vmID string) (*TAPConfig, error) {
 		Gateway:   hostIP,
 		DNS:       "8.8.8.8",
 		HostIface: m.hostIface,
+		MAC:       generateMAC(),
 	}
 
 	m.allocations[vmID] = cfg
@@ -116,6 +118,15 @@ func (m *Manager) Get(vmID string) (*TAPConfig, bool) {
 	defer m.mu.Unlock()
 	cfg, ok := m.allocations[vmID]
 	return cfg, ok
+}
+
+// generateMAC creates a random locally-administered unicast MAC address.
+func generateMAC() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	// Set locally administered bit (bit 1) and clear multicast bit (bit 0).
+	b[0] = (b[0] | 0x02) & 0xfe
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", b[0], b[1], b[2], b[3], b[4], b[5])
 }
 
 // AllowDHCP opens firewall ports for DHCP on a TAP interface.

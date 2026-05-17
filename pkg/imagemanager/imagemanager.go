@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // Manager handles VM disk image creation and cleanup.
@@ -59,6 +62,73 @@ func (m *Manager) DeleteDisk(vmID string) error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("delete disk: %w", err)
 	}
+	return nil
+}
+
+// InjectCloudInitSeed mounts the VM disk, writes cloud-init seed files
+// into /var/lib/cloud/seed/nocloud/, then unmounts.
+// Files map: filename -> content (e.g. "user-data" -> "#cloud-config\n...")
+func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) error {
+	diskPath := m.VMDiskPath(vmID)
+
+	mountPoint, err := os.MkdirTemp("", "vmmount-*")
+	if err != nil {
+		return fmt.Errorf("create mount point: %w", err)
+	}
+	defer os.RemoveAll(mountPoint)
+
+	// Setup loop device
+	out, err := exec.Command("losetup", "-f", "--show", "--partscan", diskPath).Output()
+	if err != nil {
+		return fmt.Errorf("losetup: %w", err)
+	}
+	loopDev := strings.TrimSpace(string(out)) // e.g. /dev/loop3
+	loopName := filepath.Base(loopDev)        // e.g. loop3
+
+	defer exec.Command("losetup", "-d", loopDev).Run()
+
+	// Get partition 1 start sector
+	startPath := fmt.Sprintf("/sys/block/%s/%sp1/start", loopName, loopName)
+	startBytes, err := os.ReadFile(startPath)
+	if err != nil {
+		return fmt.Errorf("read partition start: %w", err)
+	}
+	startSector, err := strconv.ParseInt(strings.TrimSpace(string(startBytes)), 10, 64)
+	if err != nil {
+		return fmt.Errorf("parse start sector: %w", err)
+	}
+	offset := startSector * 512
+
+	// Mount partition
+	mountArgs := []string{"-o", fmt.Sprintf("loop,offset=%d", offset), diskPath, mountPoint}
+	if out, err := exec.Command("mount", mountArgs...).CombinedOutput(); err != nil {
+		return fmt.Errorf("mount: %w: %s", err, out)
+	}
+	defer exec.Command("umount", mountPoint).Run()
+
+	// Create seed directory
+	seedDir := filepath.Join(mountPoint, "var", "lib", "cloud", "seed", "nocloud")
+	if err := os.MkdirAll(seedDir, 0755); err != nil {
+		return fmt.Errorf("mkdir seed: %w", err)
+	}
+
+	// Write seed files
+	for name, content := range files {
+		path := filepath.Join(seedDir, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+	}
+
+	// Reset cloud-init instance state so it runs fresh
+	instanceDir := filepath.Join(mountPoint, "var", "lib", "cloud", "instances")
+	if err := os.RemoveAll(instanceDir); err != nil {
+		return fmt.Errorf("remove cloud instances: %w", err)
+	}
+	// Also remove the per-instance symlink
+	instanceLink := filepath.Join(mountPoint, "var", "lib", "cloud", "instance")
+	_ = os.Remove(instanceLink)
+
 	return nil
 }
 

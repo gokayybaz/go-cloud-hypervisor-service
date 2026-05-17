@@ -21,13 +21,19 @@ type Config struct {
 	SSHPublicKey string
 	// OutputPath is where the ISO file will be written.
 	OutputPath string
+	// MAC is the VM's network interface MAC address.
+	MAC string
+	// VMIP is the VM's static IP address.
+	VMIP string
+	// Gateway is the VM's default gateway.
+	Gateway string
 }
 
 // Generate creates a cloud-init NoCloud ISO at cfg.OutputPath.
 func Generate(cfg Config) error {
 	userData := buildUserData(cfg.SSHPublicKey)
 	metaData := buildMetaData(cfg.InstanceID, cfg.Hostname)
-	networkConfig := buildNetworkConfig()
+	networkConfig := buildNetworkConfig("", "", "")
 
 	// Create a temp directory to hold the files
 	tmpDir, err := os.MkdirTemp("", "cloudinit-*")
@@ -52,6 +58,16 @@ func Generate(cfg Config) error {
 	return createISO(cfg.OutputPath, tmpDir)
 }
 
+// BuildSeedFiles returns cloud-init seed file contents as a map.
+// Use this instead of Generate() when injecting directly into the VM disk.
+func BuildSeedFiles(cfg Config) map[string]string {
+	return map[string]string{
+		"user-data":      buildUserData(cfg.SSHPublicKey),
+		"meta-data":      buildMetaData(cfg.InstanceID, cfg.Hostname),
+		"network-config": buildNetworkConfig(cfg.MAC, cfg.VMIP, cfg.Gateway),
+	}
+}
+
 func buildUserData(sshPublicKey string) string {
 	return fmt.Sprintf(`#cloud-config
 users:
@@ -71,7 +87,21 @@ func buildMetaData(instanceID, hostname string) string {
 	return fmt.Sprintf("instance-id: %s\nlocal-hostname: %s\n", instanceID, hostname)
 }
 
-func buildNetworkConfig() string {
+func buildNetworkConfig(mac, vmIP, gateway string) string {
+	if mac != "" && vmIP != "" && gateway != "" {
+		return fmt.Sprintf(`version: 2
+ethernets:
+  enp1s0:
+    dhcp4: false
+    addresses:
+      - %s/30
+    routes:
+      - to: default
+        via: %s
+    match:
+      macaddress: %s
+`, vmIP, gateway, mac)
+	}
 	return `version: 2
 ethernets:
   enp1s0:

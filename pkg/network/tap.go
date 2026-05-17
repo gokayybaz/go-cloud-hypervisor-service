@@ -10,4 +10,5 @@ type TAPConfig struct {
 	Gateway   string // same as HostIP
 	DNS       string // 8.8.8.8
 	HostIface string // host NIC, e.g. eth0 — read from config
+	MAC       string // auto-generated MAC address
 }
