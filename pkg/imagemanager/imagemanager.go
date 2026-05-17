@@ -78,7 +78,7 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	defer os.RemoveAll(mountPoint)
 
 	// Setup loop device
-	cmd := exec.Command("sudo", "losetup", "-f", "--show", "--partscan", diskPath)
+	cmd := exec.Command("losetup", "-f", "--show", "--partscan", diskPath)
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -89,7 +89,7 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	loopDev := strings.TrimSpace(string(out)) // e.g. /dev/loop3
 	loopName := filepath.Base(loopDev)        // e.g. loop3
 
-	defer exec.Command("sudo", "losetup", "-d", loopDev).Run()
+	defer exec.Command("losetup", "-d", loopDev).Run()
 
 	// Get partition 1 start sector
 	startPath := fmt.Sprintf("/sys/block/%s/%sp1/start", loopName, loopName)
@@ -104,11 +104,11 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 	offset := startSector * 512
 
 	// Mount partition
-	if out, err := exec.Command("sudo", "mount", "-o",
+	if out, err := exec.Command("mount", "-o",
 		fmt.Sprintf("loop,offset=%d", offset), diskPath, mountPoint).CombinedOutput(); err != nil {
 		return fmt.Errorf("mount: %w: %s", err, out)
 	}
-	defer exec.Command("sudo", "umount", mountPoint).Run()
+	defer exec.Command("umount", mountPoint).Run()
 
 	// Create seed directory
 	seedDir := filepath.Join(mountPoint, "var", "lib", "cloud", "seed", "nocloud")
