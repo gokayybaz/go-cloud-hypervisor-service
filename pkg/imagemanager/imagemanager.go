@@ -64,63 +64,88 @@ func (m *Manager) DeleteDisk(vmID string) error {
 	return nil
 }
 
-// InjectCloudInitSeed mounts the VM disk, writes cloud-init seed files
-// into /var/lib/cloud/seed/nocloud/, then unmounts.
-// Files map: filename -> content (e.g. "user-data" -> "#cloud-config\n...")
+// InjectCloudInitSeed writes cloud-init seed files directly into the VM disk
+// using debugfs, which does not require mounting or loop devices.
 func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) error {
 	diskPath := m.VMDiskPath(vmID)
 
-	mountPoint, err := os.MkdirTemp("", "vmmount-*")
+	// Find the loop device for this disk (e.g. /dev/loop1p1)
+	// First check if a loop device exists for ubuntu.raw (the base image);
+	// the VM disk is a copy so it has the same partition layout.
+	// We use the VM disk path directly with debugfs partition offset.
+	// Ubuntu 22.04 cloud image: partition 1 is at sector 227328.
+	// debugfs accepts the disk image directly with -o srcdev for partition.
+	// Since debugfs doesn't support offset, we find the loop device for the disk.
+
+	// Get the loop device for this VM disk
+	loopDev, err := m.findOrCreateLoopDevice(diskPath)
 	if err != nil {
-		return fmt.Errorf("create mount point: %w", err)
+		return fmt.Errorf("find loop device: %w", err)
 	}
-	defer os.RemoveAll(mountPoint)
+	partDev := loopDev + "p1"
 
-	const partitionOffset = 227328 * 512
-
-	// Check if a loop device already exists for this disk
-	out, err := exec.Command("losetup", "-j", diskPath).Output()
-
-	var mountDevice string
-	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
-		// Use existing loop device: extract /dev/loopN from output
-		// Output format: "/dev/loop1: [1792]:13 (/path/to/disk)"
-		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
-		mountDevice = strings.TrimSpace(parts[0])
-		// Mount using existing loop device with offset
-		if out, err := exec.Command("mount", "-o",
-			fmt.Sprintf("offset=%d", partitionOffset),
-			mountDevice, mountPoint).CombinedOutput(); err != nil {
-			return fmt.Errorf("mount existing loop: %w: %s", err, out)
-		}
-	} else {
-		// No existing loop device, mount directly with loop option
-		if out, err := exec.Command("mount", "-o",
-			fmt.Sprintf("loop,offset=%d", partitionOffset),
-			diskPath, mountPoint).CombinedOutput(); err != nil {
-			return fmt.Errorf("mount: %w: %s", err, out)
-		}
-	}
-	defer exec.Command("umount", mountPoint).Run()
-
-	// Create seed directory
-	seedDir := filepath.Join(mountPoint, "var", "lib", "cloud", "seed", "nocloud")
-	if err := os.MkdirAll(seedDir, 0755); err != nil {
-		return fmt.Errorf("mkdir seed: %w", err)
+	// Ensure seed directory exists
+	mkdirCmds := []string{
+		"mkdir /var/lib/cloud",
+		"mkdir /var/lib/cloud/seed",
+		"mkdir /var/lib/cloud/seed/nocloud",
 	}
 
-	// Write seed files
+	for _, cmd := range mkdirCmds {
+		// Ignore errors - directories may already exist
+		exec.Command("debugfs", "-w", partDev, "-R", cmd).Run()
+	}
+
+	// Write each seed file
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(seedDir, name), []byte(content), 0644); err != nil {
-			return fmt.Errorf("write %s: %w", name, err)
+		// Write content to a temp file first
+		tmpFile, err := os.CreateTemp("", "cloudinit-*")
+		if err != nil {
+			return fmt.Errorf("create temp file: %w", err)
 		}
+		if _, err := tmpFile.WriteString(content); err != nil {
+			tmpFile.Close()
+			os.Remove(tmpFile.Name())
+			return fmt.Errorf("write temp file: %w", err)
+		}
+		tmpFile.Close()
+
+		destPath := "/var/lib/cloud/seed/nocloud/" + name
+		writeCmd := fmt.Sprintf("write %s %s", tmpFile.Name(), destPath)
+		if out, err := exec.Command("debugfs", "-w", partDev, "-R", writeCmd).CombinedOutput(); err != nil {
+			os.Remove(tmpFile.Name())
+			return fmt.Errorf("debugfs write %s: %w: %s", name, err, out)
+		}
+		os.Remove(tmpFile.Name())
 	}
 
 	// Reset cloud-init instance state
-	_ = os.RemoveAll(filepath.Join(mountPoint, "var", "lib", "cloud", "instances"))
-	_ = os.Remove(filepath.Join(mountPoint, "var", "lib", "cloud", "instance"))
+	exec.Command("debugfs", "-w", partDev, "-R", "rm /var/lib/cloud/instance").Run()
+	exec.Command("debugfs", "-w", partDev, "-R", "rm_rf /var/lib/cloud/instances").Run()
 
 	return nil
+}
+
+// findOrCreateLoopDevice finds an existing loop device for the disk,
+// or creates a new one using losetup.
+func (m *Manager) findOrCreateLoopDevice(diskPath string) (string, error) {
+	// Check for existing loop device
+	out, err := exec.Command("losetup", "-j", diskPath).Output()
+	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+		// Parse: "/dev/loop1: [1792]:13 (/path)"
+		parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 2)
+		return strings.TrimSpace(parts[0]), nil
+	}
+
+	// Create new loop device
+	out, err = exec.Command("losetup", "-f", "--show", "--partscan", diskPath).Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("losetup: %w: %s", err, string(exitErr.Stderr))
+		}
+		return "", fmt.Errorf("losetup: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func copyFile(src, dst string) error {
