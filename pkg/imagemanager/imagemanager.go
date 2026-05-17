@@ -81,8 +81,8 @@ func (m *Manager) InjectCloudInitSeed(vmID string, files map[string]string) erro
 		}
 	}
 
-	// Call the helper script with sudo
-	out, err := exec.Command("sudo", "/usr/local/bin/ch-seed-inject", diskPath, seedDir).CombinedOutput()
+	// Call the helper script
+	out, err := exec.Command("/usr/local/bin/ch-seed-inject", diskPath, seedDir).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("ch-seed-inject: %w: %s", err, out)
 	}
